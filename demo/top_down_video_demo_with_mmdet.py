@@ -4,7 +4,7 @@ import warnings
 from argparse import ArgumentParser
 
 import cv2
-
+import pdb
 from mmpose.apis import (inference_top_down_pose_model, init_pose_model,
                          process_mmdet_results, vis_pose_result)
 from mmpose.datasets import DatasetInfo
@@ -94,7 +94,7 @@ def main():
     else:
         os.makedirs(args.out_video_root, exist_ok=True)
         save_out_video = True
-
+    # pdb.set_trace()
     if save_out_video:
         fps = cap.get(cv2.CAP_PROP_FPS)
         size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -117,7 +117,6 @@ def main():
             break
         # test a single image, the resulting box is (x1, y1, x2, y2)
         mmdet_results = inference_detector(det_model, img)
-
         # keep the person class bounding boxes.
         person_results = process_mmdet_results(mmdet_results, args.det_cat_id)
 
@@ -132,7 +131,7 @@ def main():
             dataset_info=dataset_info,
             return_heatmap=return_heatmap,
             outputs=output_layer_names)
-
+        # pdb.set_trace()
         # show the results
         vis_img = vis_pose_result(
             pose_model,

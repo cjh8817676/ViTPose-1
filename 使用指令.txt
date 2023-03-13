@@ -1,0 +1,49 @@
+# conduct the experiments by running
+# for single machine
+bash tools/dist_train.sh <Config PATH> <NUM GPUs> --cfg-options model.pretrained=<Pretrained PATH> --seed 0
+
+ex: 
+bash tools/dist_train.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py 1 --cfg-options model.pretrained=pretrained_model/small_pretrained.pth --seed 0
+
+----------------------------------------------------------------------------------------
+# To test the pretrained models performance, please run
+bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
+
+ex:
+bash tools/dist_test.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py pretrained_model/vitpose+_small.pth 1
+
+-----------------------------------------------------------------------------------------
+實際環境的安裝還是遵照該: https://github.com/ViTAE-Transformer/ViTPose/issues/20 中的 user:YuBeomGon，才有辦法跑 video demo
+
+vitnet
+(錯誤示範: vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py 像這種有多種資料及名稱的config檔案不能進行video demo)
+python demo/top_down_video_demo_with_mmdet.py \
+    demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py \
+    pretrained_model/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
+    configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py \
+    pretrained_model/vitpose+_small.pth \
+    --video-path ~/test_video/cat_jump.mp4 \
+    --out-video-root vis_results
+
+(正確示範)
+python demo/top_down_video_demo_with_mmdet.py \
+    demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py \
+    pretrained_model/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth \
+    configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py \
+    pretrained_model/vitpose-h.pth \
+    --video-path ~/test_video/cat_jump.mp4 \
+    --out-video-root vis_results
+
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_mmdet.py', args= 'demo/mmdetection_cfg/faster_rcnn_r50_fpn_coco.py pretrained_model/faster_rcnn_r50_fpn_1x_coco_20200130-047c8118.pth  configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results',wdir='/home/m11002125/VITPOSE/')
+
+
+-----------------------------------------------------------------------------------------
+use xmem as detector.
+
+python demo/top_down_video_demo_with_xmem.py --video ~/test_video/cat_jump.mp4
+
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
+
+
+
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path /home/m11002125/test_video/0214/test_3/original.mp4 --out-video-root vis_results --size 720 --video /home/m11002125/test_video/0214/test_3/original.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
