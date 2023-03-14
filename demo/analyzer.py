@@ -152,7 +152,7 @@ def check_handoff(bar_point,human_point,human_mask,counter):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        uic.loadUi("./scripts/new_gui.ui", self)
+        uic.loadUi("./demo/new_gui.ui", self)
         # create Upload_video button
         self.Upload_video.clicked.connect(self.open_file)
 
@@ -242,9 +242,11 @@ class MainWindow(QMainWindow):
         self.filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
         video_name = self.filename.split('x')[-1]
         self.video_name = video_name.split('.')[0]
-        self.mask_path = os.path.join('/home/m11002125/AlphaPose-1/workspace/',self.video_name, "masks/") 
-        self.motion_json_path = self.filename.replace('AlphaPose_','') + '.json'
-        
+        video_mask = self.video_name.split('/')[-1]
+        video_mask = video_mask.replace('vis_','')
+        self.mask_path = os.path.join('/home/m11002125/ViTPose/workspace/',video_mask, "masks/") 
+        self.motion_json_path = os.path.join('/home/m11002125/ViTPose/vis_results/',video_mask+'.mp4.json')
+        # pdb.set_trace()
         # read pose data
         with open(self.motion_json_path) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
             self.pose_data = json.load(f)
