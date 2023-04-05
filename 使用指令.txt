@@ -42,10 +42,55 @@ use xmem as detector.
 
 python demo/top_down_video_demo_with_xmem.py --video ~/test_video/cat_jump.mp4
 
+# vitpose
 runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
+
+# vitpose : 影片路徑最好選絕對路徑 痾痾
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path "/home/m11002125/test_video/0214/test_3/test_3.mp4" --out-video-root vis_results --size -1 --video "/home/m11002125/test_video/0214/test_3/test_3.mp4" --num_objects 2',wdir='/home/m11002125/ViTPose')
+
+# hrnet_w48
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/hrnet_w48_coco_384x288.py --pose_checkpoint pretrained_model/hrnet_w48_coco_384x288_20200708 --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
+
 
 
 ----------------------------------------------------------------------------------------------------------
 motion analysis:
 
 runfile('/home/m11002125/ViTPose/demo/analyzer.py', wdir='/home/m11002125/ViTPose')
+
+
+----------------------------------------------------------------------------------------------------------
+test:
+bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
+bash tools/dist_test.sh configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py pretrained_model/vitpose-h.pth 1
+
+----------------------------------------------------------------------------------------------------------
+train: 訓練
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------
+export DISPLAY=localhost:10.0
+

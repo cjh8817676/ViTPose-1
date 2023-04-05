@@ -121,6 +121,7 @@ if __name__ == '__main__':
             fbrs_controller = None
 
         # Manages most IO
+        # pdb.set_trace()
         resource_manager = ResourceManager(config)
 
         app = QApplication(sys.argv)

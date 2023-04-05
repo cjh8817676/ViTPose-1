@@ -373,7 +373,7 @@ def inference_top_down_pose_model(model,
     if len(person_results) == 0:
         return pose_results, returned_outputs
     
-    if isinstance(person_results, torch.Tensor):        # for Xmem propagate
+    if isinstance(person_results, torch.Tensor):           # for Xmem propagate
         box = {}
         bboxes = person_results.numpy()
         bboxes = np.array([np.append(bboxes[0], [0.99])])  # let acc of bbox be 99%
@@ -799,7 +799,14 @@ def vis_pose_result(model,
 
     if hasattr(model, 'module'):
         model = model.module
-
+    pdb.set_trace()
+    # temp = result
+    
+    # for i in range(1,(temp[0]['keypoints']).shape[0]):
+    #     temp[0]['keypoints'][i] = np.array([0.0,0.0,0.0], dtype = float)
+        
+    # radius = 30
+    
     img = model.show_result(
         img,
         result,
