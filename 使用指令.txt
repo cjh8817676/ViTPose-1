@@ -12,6 +12,18 @@ bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
 ex:
 bash tools/dist_test.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py pretrained_model/vitpose+_small.pth 1
 
+
+換成python指令:
+python tools/train.py     \
+    configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py  \
+    --cfg-options model.pretrained=pretrained_model/small_pretrained.pth  \
+    --gpus 1    \
+    --seed 0    \
+    --launcher "none"
+
+runfile('tools/train.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py --cfg-options model.pretrained=pretrained_model/small_pretrained.pth --gpus 1 --seed 0 --launcher "none"',wdir='/home/m11002125/VITPOSE/')
+
+
 -----------------------------------------------------------------------------------------
 實際環境的安裝還是遵照該: https://github.com/ViTAE-Transformer/ViTPose/issues/20 中的 user:YuBeomGon，才有辦法跑 video demo
 
@@ -66,6 +78,8 @@ bash tools/dist_test.sh configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/V
 
 ----------------------------------------------------------------------------------------------------------
 train: 訓練
+
+
 
 
 

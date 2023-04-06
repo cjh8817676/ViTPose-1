@@ -799,7 +799,7 @@ def vis_pose_result(model,
 
     if hasattr(model, 'module'):
         model = model.module
-    pdb.set_trace()
+    # pdb.set_trace()
     # temp = result
     
     # for i in range(1,(temp[0]['keypoints']).shape[0]):
