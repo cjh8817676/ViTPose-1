@@ -6,6 +6,7 @@ import os.path as osp
 import time
 import warnings
 
+import pdb
 import mmcv
 import torch
 from mmcv import Config, DictAction
@@ -165,7 +166,7 @@ def main():
     set_random_seed(seed, deterministic=args.deterministic)
     cfg.seed = seed
     meta['seed'] = seed
-
+    # pdb.set_trace()
     model = build_posenet(cfg.model)
     datasets = [build_dataset(cfg.data.train)]
 
@@ -182,13 +183,14 @@ def main():
             config=cfg.pretty_text,
         )
     train_model(
-        model,
-        datasets,
-        cfg,
-        distributed=distributed,
+        model,                          # decided by cfg
+        datasets,                       # decided by cfg
+        cfg,                            # cfg = Config.fromfile(args.config)
+        distributed=distributed,        # decided by --launcher
         validate=(not args.no_validate),
-        timestamp=timestamp,
-        meta=meta)
+        timestamp=timestamp,            # record training time
+        meta=meta)                      # to record some important information such as
+                                        # environment info and seed, which will be logged
 
 
 if __name__ == '__main__':

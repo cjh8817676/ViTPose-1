@@ -237,11 +237,11 @@ class MainWindow(QMainWindow):
         self.height_pg_timer.timeout.connect(self.update_height)
     
         # twist pg
-        self.gt_belly_data = []
+        self.gt_augular_speed_data = []
         self.twist_data = [0]                                          # no twist speed in first frame 
         self.twist_pg.showGrid(x = True, y = True, alpha = 1) 
         self.twist_pg.setLabel('bottom','Time','s')
-        # self.twist_gt_curve1 = self.twist_pg.plot(self.gt_belly_data,pen=(255,0,0)) # for indicate
+        # self.twist_gt_curve1 = self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0)) # for indicate
         # self.twist_curve1 = self.twist_pg.plot(self.twist_data)                   # for indicate
         self.height_pg.setLabel('left','meter(m)')
         self.twist_pg_timer = pg.QtCore.QTimer()
@@ -256,16 +256,21 @@ class MainWindow(QMainWindow):
         self.hand_off_timer.timeout.connect(self.update_hand_off)
 
         # sensor pg
-        self.sensors_data =  np.random.rand(300)
+        # self.sensors_data =  np.random.rand(300)
         self.sensors_pg.setLabel('bottom','Time','s')
         self.sensors_pg.showGrid(x = True, y = True, alpha = 1)
-        self.sensors_curve = self.sensors_pg.plot(self.sensors_data)
+        # self.sensors_curve = self.sensors_pg.plot(self.sensors_data)
         self.imu_pg_timer = pg.QtCore.QTimer()
         self.imu_pg_timer.timeout.connect(self.update_imu)
         
     def open_file(self):
         self.head_height_data = []
         self.hand_coordinate = []
+        self.gt_augular_speed_data = []
+        self.twist_data = [0]                                          # no twist speed in first frame 
+        self.hip_angle_data=[]
+        self.handoff_data = []
+        self.head_coord_data = []
         global imu_data_pd,imu_data_gyrox,imu_data_gyroy,imu_data_gyroz
         global imu_data_accx,imu_data_accy,imu_data_accz
         global imu_data_haccx,imu_data_haccy,imu_data_haccz, imu_data_len
@@ -309,9 +314,9 @@ class MainWindow(QMainWindow):
             belly_data = pd.read_excel(self.gt_belly_path)
             belly_data = belly_data.tail(-1) # remove first row
             belly_data.set_axis( ['step','frame','time','pixelx','pixely','x','y','r','theta_r','theta','w','wa'], axis='columns', inplace=True)
-            self.gt_belly_data = np.array(belly_data['w'].to_numpy(), dtype=float) #　get angular speeds
+            self.gt_augular_speed_data = np.array(belly_data['w'].to_numpy(), dtype=float) #　get angular speeds
         else:
-            self.gt_belly_data = None
+            self.gt_augular_speed_data = None
             print('no belly ground truth')
 
 
@@ -386,6 +391,8 @@ class MainWindow(QMainWindow):
                 self.human_feet.append(np.array(np.array([(self.pose_data[counter]['keypoints'][45] + self.pose_data[counter]['keypoints'][48]) / 2,
                                 (self.pose_data[counter]['keypoints'][46] + self.pose_data[counter]['keypoints'][49]) / 2]))
                 )
+
+                self.hip_angle_data.append(getAngle([(self.pose_data[counter]['keypoints'][36],self.pose_data[counter]['keypoints'][37]) ,(self.pose_data[counter]['keypoints'][18],self.pose_data[counter]['keypoints'][19]) ,(self.pose_data[counter]['keypoints'][42],self.pose_data[counter]['keypoints'][43])]))
                 
                 if check_handoff(self.horizontal_bar_points,[self.pose_data[counter]['keypoints'][27:29],self.pose_data[counter]['keypoints'][30:32]],self.human_mask_data[counter]): # check if handoff
                     self.handoff_data.append(1)  # handoff
@@ -451,7 +458,7 @@ class MainWindow(QMainWindow):
         self.height_pg_timer.start() # 50ms
         self.twist_pg_timer.start() # 50ms
         self.hand_off_timer.start() # 50ms
-        # self.imu_pg_timer.start() # 2ms  imu: 400Hz
+        self.imu_pg_timer.start() # 2ms  imu: 400Hz
 
     def update_interact_vis(self):
         frame = self.frames[self.cursur]
@@ -591,6 +598,13 @@ class MainWindow(QMainWindow):
         time = np.linspace(0.0, self.num_frames/self.fps, num=self.num_frames)
         self.height_pg.plot(y = self.head_height_data,  x = time)
         self.height_pg.plot([time[self.cursur]],[self.head_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+
+        lr = pg.LinearRegionItem([1, 30], bounds=[0,100], movable=True)
+        self.height_pg.addItem(lr)
+        line = pg.InfiniteLine(angle=90, movable=True)
+        self.height_pg.addItem(line)
+        line.setBounds([0,200])
+
         if self.gt_height_data is not None:
             time2 = np.linspace(0.0, len(self.gt_height_data)/self.fps, num=len(self.gt_height_data))
             self.height_pg.plot(self.gt_height_data,pen=(255,0,0), x = time2)
@@ -613,17 +627,18 @@ class MainWindow(QMainWindow):
         self.twist_pg.clear()
         self.twist_pg.plot(self.twist_data)
         self.twist_pg.plot([self.cursur],[self.twist_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-        if self.gt_height_data is not None:
-            self.twist_pg.plot(self.gt_belly_data,pen=(255,0,0))
-            self.twist_pg.plot([self.cursur],[self.gt_belly_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+        
+        if self.gt_augular_speed_data is not None:
+            self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0))
+            self.twist_pg.plot([self.cursur],[self.gt_augular_speed_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
             
         # 隨時間更新Plot
         # data = self.twist_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
         # self.twist_curve1.setData(data)
         # self.twist_curve1.setPos(self.cursur, 0)
         
-        # if self.gt_belly_data is not None:
-        #     data2 = self.gt_belly_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
+        # if self.gt_augular_speed_data is not None:
+        #     data2 = self.gt_augular_speed_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
         #     self.twist_gt_curve1.setData(data2)
         #     self.twist_gt_curve1.setPos(self.cursur, 0)
 
@@ -635,11 +650,16 @@ class MainWindow(QMainWindow):
         
 
     def update_imu(self):
-        self.sensors_data[:-1] = self.sensors_data[1:]  # shift data in the array one sample left
-                                # (see also: np.roll)
-        self.sensors_data[-1] = np.random.normal()
-        # print(len(self.data1))
-        self.sensors_curve.setData(self.sensors_data)
+        # pdb.set_trace()
+        self.sensors_pg.clear()
+        self.sensors_pg.plot(self.hip_angle_data)
+        self.sensors_pg.plot([self.cursur],[self.hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        
+        # self.sensors_data[:-1] = self.sensors_data[1:]  # shift data in the array one sample left
+        #                         # (see also: np.roll)
+        # self.sensors_data[-1] = np.random.normal()
+        # # print(len(self.data1))
+        # self.sensors_curve.setData(self.sensors_data)
         # global imu_data_gyrox,imu_data_left,imu_data_right
         # if self.cursur > hand_on_frame:
         #     imu_data_left = int(self.cursur * (imu_data_len/self.num_frames)) - hand_on_frame
