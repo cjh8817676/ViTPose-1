@@ -302,19 +302,20 @@ class MainWindow(QMainWindow):
 
         self.filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
         print('video_name:', self.filename)
-        # pdb.set_trace()
+
         video_name = self.filename.split('x')[-1]
         video_form = video_name.split('.')[1]
         self.video_name = video_name.split('.')[0]
         video_mask = self.video_name.split('/')[-1]
         video_mask = video_mask.replace('vis_','')
-        self.mask_path = os.path.join('/home/m11002125/ViTPose/workspace/',video_mask, "masks/") 
-        self.motion_json_path = os.path.join('/home/m11002125/ViTPose/vis_results/',video_mask+'.'+video_form+'.json')
+        self.mask_path = os.path.join('./workspace/',video_mask, "masks/") 
+        self.motion_json_path = os.path.join('./vis_results/',video_mask+'.'+video_form+'.json')
 
         self.gt_head_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_head.xlsx')
         self.gt_belly_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_belly.xlsx')
-
-
+        self.gt_joint_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_gt_joint.xlsx')
+        self.gt_joint_angle_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_gt_jointangle.xlsx')
+        
         # read results of pose estimation.
         with open(self.motion_json_path) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
             self.pose_data = json.load(f)
@@ -343,22 +344,49 @@ class MainWindow(QMainWindow):
         else:
             self.gt_augular_speed_data = None
             print('no belly ground truth')
+            
+        if os.path.isfile(self.gt_joint_angle_path):
+            gt_jointangle_data = pd.read_excel(self.gt_joint_angle_path)
+            self.gt_hip_angle_data = gt_jointangle_data['hip_angle'].to_numpy()
+            self.gt_shoulder_angle_data = gt_jointangle_data['shoulder_angle']
+            self.gt_angle_timeline = gt_jointangle_data.iloc[:,0:3]
+        else:
+            print('no gt_jointangle.xlsx found')   
+        
+        if os.path.isfile(self.gt_joint_path):
+            gt_joint_data = pd.read_excel(self.gt_joint_path)
+            gt_joint_data.columns = gt_joint_data.iloc[0]
+            gt_joint_data = gt_joint_data.drop(0)
+            
+            # 資料補None
+            # Find out the timeline that complemented with None
+            compliment = np.array([None] * 16)
 
-        # imu_data_pd = pd.read_csv(self.filename+'.csv')
-        # imu_data_gyrox = list(imu_data_pd['GyroX'])
-        # imu_data_gyroy = list(imu_data_pd['GyroY'])
-        # imu_data_gyroz = list(imu_data_pd['GyroZ'])
-        # imu_data_accx  = list(imu_data_pd['AccX'])
-        # imu_data_accy  = list(imu_data_pd['AccY'])
-        # imu_data_accz  = list(imu_data_pd['AccZ'])
-        # imu_data_haccx = list(imu_data_pd['HAccX'])
-        # imu_data_haccy = list(imu_data_pd['HAccY'])
-        # imu_data_haccz = list(imu_data_pd['HAccZ'])
-        # imu_data_len = len(imu_data_gyrox)
+            self.gt_joint_timeline = gt_joint_data.iloc[1:,0:3].to_numpy() # time,step,frame
+            step_line = self.gt_joint_timeline[:,1]
+            
+            for j in self.gt_angle_timeline.iloc[0:].to_numpy():
+                if j[1] not in step_line:
+                    compliment[0] = j[0] 
+                    compliment[1] = j[1]
+                    compliment[2] = j[2]
+                    gt_joint_data.loc[len(gt_joint_data)+1] = compliment
+            
+            gt_joint_data = gt_joint_data.sort_values(by='step').reset_index(drop=True)
 
-        # self.json_file = self.filename+'.json'
-        # self.jsonfile = self.json_file.split('/')[-1]
-        # self.jsonfile = self.jsonfile.replace('AlphaPose_', '')
+            self.gt_head_coord = gt_joint_data.iloc[:,3:5].to_numpy()
+            self.gt_height_data = gt_joint_data.iloc[:,5].to_numpy()
+            self.gt_wrist_coord = gt_joint_data.iloc[:,6:8].to_numpy()
+            self.gt_elbow_coord = gt_joint_data.iloc[:,8:10].to_numpy()
+            self.gt_knee_coord = gt_joint_data.iloc[:,10:12].to_numpy()
+            self.gt_hip_coord = gt_joint_data.iloc[:,12:14].to_numpy()
+            self.gt_shoulder_coord = gt_joint_data.iloc[:,14:16].to_numpy()
+        else:
+            self.gt_height_data = None
+            print('no gt_joint.xlsx found')
+                
+
+            
 
         # read all video and save every frame in stack
         stream = cv2.VideoCapture(self.filename)                    # 影像路徑
@@ -633,9 +661,11 @@ class MainWindow(QMainWindow):
         line.setBounds([0,200])
 
         if self.gt_height_data is not None:
+            data = np.array(self.gt_height_data, dtype=float)
             time2 = np.linspace(0.0, len(self.gt_height_data)/self.fps, num=len(self.gt_height_data))
-            self.height_pg.plot(self.gt_height_data,pen=(255,0,0), x = time2)
-            self.height_pg.plot([time2[self.cursur]],[self.gt_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+            
+            self.height_pg.plot(data,pen=(255,0,0), x = time2)
+            self.height_pg.plot([time2[self.cursur]],[data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
             
 
         # 隨時間更新Plot
