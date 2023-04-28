@@ -35,6 +35,7 @@ imu_data_haccz = []
 imu_data_left = 0
 imu_data_right = 1200
 
+
 handoff_radius = 30 # 30 pixel
 
 # coco pose
@@ -278,7 +279,7 @@ class MainWindow(QMainWindow):
         self.video_name = video_name.split('.')[0]
         video_mask = self.video_name.split('/')[-1]
         video_mask = video_mask.replace('vis_','')
-        self.mask_path = os.path.join("/home/m11002163/lab_project/ViTPose-1/workspace/",video_mask, "masks/") 
+        self.mask_path = os.path.join("/home/m11002163/lab_project/ViTPose-1/workspace/",video_mask, "masks/") #
         self.motion_json_path = os.path.join("/home/m11002163/lab_project/ViTPose-1/vis_results/",video_mask+'.mp4.json')
 
         self.gt_head_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_head.xlsx')
