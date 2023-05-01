@@ -186,7 +186,7 @@ class TopDown(BasePose):
                     features_flipped, img_metas[0]['flip_pairs'])
                 output_heatmap = (output_heatmap +
                                   output_flipped_heatmap) * 0.5
-
+        output_heatmap = output_heatmap.astype('float32')    # just make sure to float32
         if self.with_keypoint:
             keypoint_result = self.keypoint_head.decode(
                 img_metas, output_heatmap, img_size=[img_width, img_height])

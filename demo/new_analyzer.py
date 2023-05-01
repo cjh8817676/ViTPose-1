@@ -18,14 +18,10 @@ file_path = os.path.dirname(__file__)
 from numba import jit
 from collections import defaultdict
 from defaultlist import defaultlist
-<<<<<<< HEAD
-
-=======
 from scipy.signal import find_peaks
 
 HUMAN_MASK = 1  # The number of the human mask
 BAR_MASK   = 2  # The number of the bar mask
->>>>>>> MVPose
 
 imu_data_pd = pd.DataFrame()
 imu_data_len = 0
@@ -42,10 +38,6 @@ imu_data_haccz = []
 imu_data_left = 0
 imu_data_right = 1200
 
-<<<<<<< HEAD
-
-=======
->>>>>>> MVPose
 handoff_radius = 30 # 30 pixel
 
 # coco pose
@@ -76,7 +68,6 @@ def find_human_mask(original_mask):
 
     
     rows,cols = np.where((original_mask[:,:]==HUMAN_MASK))
-
     
     for i,j in zip(rows,cols):
         human_mask_point.append([j,i])
@@ -88,17 +79,13 @@ def find_human_mask(original_mask):
 # @jit(nopython=True)
 def find_horizontal_bar_mask(original_mask):
     # pdb.set_trace()
-
     w , h = original_mask.shape
-
     min_row = 4000
     min_col = 4000
     max_col = -1
     max_row = -1
     
-
     rows,cols = np.where(original_mask[:,:]==BAR_MASK)
-
     min_row = min(rows)
     max_row = max(rows)
     min_col = min(cols)
@@ -156,7 +143,6 @@ def check_handoff(bar_point,human_hand,human_mask):
     else:
         return False
 
-
 def getBodyAngle(pointlist):
     """
     input a list which have 3 points
@@ -188,7 +174,6 @@ def getAngle(pointlist):
         clockwise => ang > 0
         counterclockwise => ang < 0
     """
-
     pt1,pt2,pt3 = pointlist
     
     m1 = getGradient(pt1, pt2)
@@ -274,13 +259,11 @@ class MainWindow(QMainWindow):
         self.height_pg_timer.timeout.connect(self.update_height)
     
         # twist pg
-
         self.gt_augular_speed_data = []
         self.twist_data = [0]                                          # no twist speed in first frame 
         self.twist_pg.showGrid(x = True, y = True, alpha = 1) 
         self.twist_pg.setLabel('bottom','Time','s')
         # self.twist_gt_curve1 = self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0)) # for indicate
-
         # self.twist_curve1 = self.twist_pg.plot(self.twist_data)                   # for indicate
         self.height_pg.setLabel('left','meter(m)')
         self.twist_pg_timer = pg.QtCore.QTimer()
@@ -295,25 +278,21 @@ class MainWindow(QMainWindow):
         self.hand_off_timer.timeout.connect(self.update_hand_off)
 
         # sensor pg
-
         # self.sensors_data =  np.random.rand(300)
         self.sensors_pg.setLabel('bottom','Time','s')
         self.sensors_pg.showGrid(x = True, y = True, alpha = 1)
         # self.sensors_curve = self.sensors_pg.plot(self.sensors_data)
-
         self.imu_pg_timer = pg.QtCore.QTimer()
         self.imu_pg_timer.timeout.connect(self.update_imu)
         
     def open_file(self):
         self.head_height_data = []
         self.hand_coordinate = []
-
         self.gt_augular_speed_data = []
         self.twist_data = [0]                                          # no twist speed in first frame 
         self.hip_angle_data=[]
         self.handoff_data = []
         self.head_coord_data = []
-
         global imu_data_pd,imu_data_gyrox,imu_data_gyroy,imu_data_gyroz
         global imu_data_accx,imu_data_accy,imu_data_accz
         global imu_data_haccx,imu_data_haccy,imu_data_haccz, imu_data_len
@@ -322,22 +301,21 @@ class MainWindow(QMainWindow):
         imu_data_right = 1200
 
         self.filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
-
         print('video_name:', self.filename)
-        # pdb.set_trace()
+
         video_name = self.filename.split('x')[-1]
         video_form = video_name.split('.')[1]
         self.video_name = video_name.split('.')[0]
         video_mask = self.video_name.split('/')[-1]
         video_mask = video_mask.replace('vis_','')
-        self.mask_path = os.path.join('/home/m11002125/ViTPose/workspace/',video_mask, "masks/") 
-        self.motion_json_path = os.path.join('/home/m11002125/ViTPose/vis_results/',video_mask+'.'+video_form+'.json')
-
+        self.mask_path = os.path.join('./workspace/',video_mask, "masks/") 
+        self.motion_json_path = os.path.join('./vis_results/',video_mask+'.'+video_form+'.json')
 
         self.gt_head_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_head.xlsx')
         self.gt_belly_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_belly.xlsx')
-
-
+        self.gt_joint_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_gt_joint.xlsx')
+        self.gt_joint_angle_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_gt_jointangle.xlsx')
+        
         # read results of pose estimation.
         with open(self.motion_json_path) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
             self.pose_data = json.load(f)
@@ -362,28 +340,53 @@ class MainWindow(QMainWindow):
             belly_data = pd.read_excel(self.gt_belly_path)
             belly_data = belly_data.tail(-1) # remove first row
             belly_data.set_axis( ['step','frame','time','pixelx','pixely','x','y','r','theta_r','theta','w','wa'], axis='columns', inplace=True)
-
             self.gt_augular_speed_data = np.array(belly_data['w'].to_numpy(), dtype=float) #　get angular speeds
         else:
             self.gt_augular_speed_data = None
             print('no belly ground truth')
+            
+        if os.path.isfile(self.gt_joint_angle_path):
+            gt_jointangle_data = pd.read_excel(self.gt_joint_angle_path)
+            self.gt_hip_angle_data = gt_jointangle_data['hip_angle'].to_numpy()
+            self.gt_shoulder_angle_data = gt_jointangle_data['shoulder_angle']
+            self.gt_angle_timeline = gt_jointangle_data.iloc[:,0:3]
+        else:
+            print('no gt_jointangle.xlsx found')   
+        
+        if os.path.isfile(self.gt_joint_path):
+            gt_joint_data = pd.read_excel(self.gt_joint_path)
+            gt_joint_data.columns = gt_joint_data.iloc[0]
+            gt_joint_data = gt_joint_data.drop(0)
+            
+            # 資料補None
+            # Find out the timeline that complemented with None
+            compliment = np.array([None] * 16)
 
+            self.gt_joint_timeline = gt_joint_data.iloc[1:,0:3].to_numpy() # time,step,frame
+            step_line = self.gt_joint_timeline[:,1]
+            
+            for j in self.gt_angle_timeline.iloc[0:].to_numpy():
+                if j[1] not in step_line:
+                    compliment[0] = j[0] 
+                    compliment[1] = j[1]
+                    compliment[2] = j[2]
+                    gt_joint_data.loc[len(gt_joint_data)+1] = compliment
+            
+            gt_joint_data = gt_joint_data.sort_values(by='step').reset_index(drop=True)
 
-        # imu_data_pd = pd.read_csv(self.filename+'.csv')
-        # imu_data_gyrox = list(imu_data_pd['GyroX'])
-        # imu_data_gyroy = list(imu_data_pd['GyroY'])
-        # imu_data_gyroz = list(imu_data_pd['GyroZ'])
-        # imu_data_accx  = list(imu_data_pd['AccX'])
-        # imu_data_accy  = list(imu_data_pd['AccY'])
-        # imu_data_accz  = list(imu_data_pd['AccZ'])
-        # imu_data_haccx = list(imu_data_pd['HAccX'])
-        # imu_data_haccy = list(imu_data_pd['HAccY'])
-        # imu_data_haccz = list(imu_data_pd['HAccZ'])
-        # imu_data_len = len(imu_data_gyrox)
+            self.gt_head_coord = gt_joint_data.iloc[:,3:5].to_numpy()
+            self.gt_height_data = gt_joint_data.iloc[:,5].to_numpy()
+            self.gt_wrist_coord = gt_joint_data.iloc[:,6:8].to_numpy()
+            self.gt_elbow_coord = gt_joint_data.iloc[:,8:10].to_numpy()
+            self.gt_knee_coord = gt_joint_data.iloc[:,10:12].to_numpy()
+            self.gt_hip_coord = gt_joint_data.iloc[:,12:14].to_numpy()
+            self.gt_shoulder_coord = gt_joint_data.iloc[:,14:16].to_numpy()
+        else:
+            self.gt_height_data = None
+            print('no gt_joint.xlsx found')
+                
 
-        # self.json_file = self.filename+'.json'
-        # self.jsonfile = self.json_file.split('/')[-1]
-        # self.jsonfile = self.jsonfile.replace('AlphaPose_', '')
+            
 
         # read all video and save every frame in stack
         stream = cv2.VideoCapture(self.filename)                    # 影像路徑
@@ -440,9 +443,7 @@ class MainWindow(QMainWindow):
                                 (self.pose_data[counter]['keypoints'][46] + self.pose_data[counter]['keypoints'][49]) / 2]))
                 )
 
-
                 self.hip_angle_data.append(getBodyAngle([(self.pose_data[counter]['keypoints'][36],self.pose_data[counter]['keypoints'][37]) ,(self.pose_data[counter]['keypoints'][18],self.pose_data[counter]['keypoints'][19]) ,(self.pose_data[counter]['keypoints'][42],self.pose_data[counter]['keypoints'][43])]))
-
                 
                 if check_handoff(self.horizontal_bar_points,[self.pose_data[counter]['keypoints'][27:29],self.pose_data[counter]['keypoints'][30:32]],self.human_mask_data[counter]): # check if handoff
                     self.handoff_data.append(1)  # handoff
@@ -478,9 +479,7 @@ class MainWindow(QMainWindow):
                                     (self.pose_data[counter]['keypoints'][34] + self.pose_data[counter]['keypoints'][37]) / 2]))
             except:
                 video_frame.append(frame)
-
                 print('sth error')
-
                 assert "something wrong in data process"
                 # break
         # pdb.set_trace()
@@ -504,21 +503,17 @@ class MainWindow(QMainWindow):
         self.cursur = 0
         self.show_current_frame()
 
-
         # print('mae:',mae(self.gt_height_data,self.head_height_data))
         # pdb.set_trace()
         
         # find peak of height (prominence: remove fake peak value)
         self.local_max_height_point, _ = find_peaks(self.head_height_data,prominence=2) 
         
-
         # gui timer 再讀完影片之後才啟動
         self.height_pg_timer.start() # 50ms
         self.twist_pg_timer.start() # 50ms
         self.hand_off_timer.start() # 50ms
-
         self.imu_pg_timer.start() # 2ms  imu: 400Hz
-
 
     def update_interact_vis(self):
         frame = self.frames[self.cursur]
@@ -655,7 +650,6 @@ class MainWindow(QMainWindow):
     def update_height(self):
         # pdb.set_trace()
         self.height_pg.clear()
-
         time = np.linspace(0.0, self.num_frames/self.fps, num=len(self.head_height_data))
         self.height_pg.plot(y = self.head_height_data,  x = time)
         self.height_pg.plot([time[self.cursur]],[self.head_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
@@ -666,11 +660,12 @@ class MainWindow(QMainWindow):
         self.height_pg.addItem(line)
         line.setBounds([0,200])
 
-
         if self.gt_height_data is not None:
+            data = np.array(self.gt_height_data, dtype=float)
             time2 = np.linspace(0.0, len(self.gt_height_data)/self.fps, num=len(self.gt_height_data))
-            self.height_pg.plot(self.gt_height_data,pen=(255,0,0), x = time2)
-            self.height_pg.plot([time2[self.cursur]],[self.gt_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+            
+            self.height_pg.plot(data,pen=(255,0,0), x = time2)
+            self.height_pg.plot([time2[self.cursur]],[data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
             
 
         # 隨時間更新Plot
@@ -689,22 +684,18 @@ class MainWindow(QMainWindow):
         self.twist_pg.clear()
         self.twist_pg.plot(self.twist_data)
         self.twist_pg.plot([self.cursur],[self.twist_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-
         
         if self.gt_augular_speed_data is not None:
             self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0))
             self.twist_pg.plot([self.cursur],[self.gt_augular_speed_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
-
             
         # 隨時間更新Plot
         # data = self.twist_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
         # self.twist_curve1.setData(data)
         # self.twist_curve1.setPos(self.cursur, 0)
         
-
         # if self.gt_augular_speed_data is not None:
         #     data2 = self.gt_augular_speed_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-
         #     self.twist_gt_curve1.setData(data2)
         #     self.twist_gt_curve1.setPos(self.cursur, 0)
 
@@ -716,7 +707,6 @@ class MainWindow(QMainWindow):
         
 
     def update_imu(self):
-
         # pdb.set_trace()
         self.sensors_pg.clear()
         self.sensors_pg.plot(self.hip_angle_data)
@@ -727,7 +717,6 @@ class MainWindow(QMainWindow):
         # self.sensors_data[-1] = np.random.normal()
         # # print(len(self.data1))
         # self.sensors_curve.setData(self.sensors_data)
-
         # global imu_data_gyrox,imu_data_left,imu_data_right
         # if self.cursur > hand_on_frame:
         #     imu_data_left = int(self.cursur * (imu_data_len/self.num_frames)) - hand_on_frame
@@ -752,9 +741,7 @@ class MainWindow(QMainWindow):
         # pdb.set_trace()
         t = time.time()
         for i, fname in enumerate(fnames):
-
             frame_list.append(np.array(Image.open(fname), dtype=np.uint8))
-
         print('reading mask cost', time.time() - t)
         
         self.mask_data = np.stack(frame_list, axis=0)
@@ -762,9 +749,7 @@ class MainWindow(QMainWindow):
         # create human_mask 
         # mask_data有可能為圖片路徑，假如影片太長或解析度太高，我會將影片與mask都以路徑的方式讀取，而不是一次全都讀取到ram裡，
         # 除非 RAM 很大，否則讀取影片的方式就要將影片切割成圖片再一張一張讀取   
-
         # pdb.set_trace()
-
         t = time.time()
         for index,mask in enumerate(self.mask_data):
             self.human_mask_data[index].append(np.array(find_human_mask(mask)))

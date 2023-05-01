@@ -8,7 +8,7 @@ import torch
 from mmcv.parallel import collate, scatter
 from mmcv.runner import load_checkpoint
 from PIL import Image
-
+import pdb
 from mmpose.core.post_processing import oks_nms
 from mmpose.datasets.dataset_info import DatasetInfo
 from mmpose.datasets.pipelines import Compose
@@ -372,16 +372,25 @@ def inference_top_down_pose_model(model,
 
     if len(person_results) == 0:
         return pose_results, returned_outputs
-
-    # Change for-loop preprocess each bbox to preprocess all bboxes at once.
-    bboxes = np.array([box['bbox'] for box in person_results])
-
-    # Select bboxes by score threshold
-    if bbox_thr is not None:
-        assert bboxes.shape[1] == 5
-        valid_idx = np.where(bboxes[:, 4] > bbox_thr)[0]
-        bboxes = bboxes[valid_idx]
-        person_results = [person_results[i] for i in valid_idx]
+    
+    if isinstance(person_results, torch.Tensor):           # for Xmem propagate
+        box = {}
+        bboxes = person_results.numpy()
+        bboxes = np.array([np.append(bboxes[0], [0.99])])  # let acc of bbox be 99%
+        bboxes = bboxes.astype('float32')
+        box['bbox'] = bboxes
+        person_results = [box]
+        
+    else:
+        # Change for-loop preprocess each bbox to preprocess all bboxes at once.
+        bboxes = np.array([box['bbox'] for box in person_results])
+    
+        # Select bboxes by score threshold
+        if bbox_thr is not None:
+            assert bboxes.shape[1] == 5
+            valid_idx = np.where(bboxes[:, 4] > bbox_thr)[0]
+            bboxes = bboxes[valid_idx]
+            person_results = [person_results[i] for i in valid_idx]
 
     if format == 'xyxy':
         bboxes_xyxy = bboxes
@@ -394,16 +403,16 @@ def inference_top_down_pose_model(model,
     # if bbox_thr remove all bounding box
     if len(bboxes_xywh) == 0:
         return [], []
-
+    # pdb.set_trace()
     with OutputHook(model, outputs=outputs, as_tensor=False) as h:
         # poses is results['pred'] # N x 17x 3
         poses, heatmap = _inference_single_pose_model(
-            model,
-            img_or_path,
-            bboxes_xywh,
-            dataset=dataset,
-            dataset_info=dataset_info,
-            return_heatmap=return_heatmap)
+            model,            # model
+            img_or_path,      # original frame
+            bboxes_xywh,      # bbox of human
+            dataset=dataset,  # 'TopDownCocoDataset'
+            dataset_info=dataset_info, #'<mmpose.datasets.dataset_info.DatasetInfo>'
+            return_heatmap=return_heatmap)  # "TRUE or FALSE"
 
         if return_heatmap:
             h.layer_outputs['heatmap'] = heatmap
@@ -790,7 +799,14 @@ def vis_pose_result(model,
 
     if hasattr(model, 'module'):
         model = model.module
-
+    # pdb.set_trace()
+    # temp = result
+    
+    # for i in range(1,(temp[0]['keypoints']).shape[0]):
+    #     temp[0]['keypoints'][i] = np.array([0.0,0.0,0.0], dtype = float)
+        
+    # radius = 30
+    
     img = model.show_result(
         img,
         result,
