@@ -2,12 +2,14 @@ import os
 import cv2
 import sys
 # fix conflicts between qt5 and cv2
-os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+# os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
+
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from GUI.video_time_couplegui import Ui_MainWindow
 import numpy as np
+import tqdm
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -38,6 +40,10 @@ class MainWindow(QMainWindow):
         # some buttons
         self.ui.doubleplay.setEnabled(False)
         self.ui.doubleplay.clicked.connect(self.on_double_play)
+
+        # some buttons
+        self.ui.couple_save.setEnabled(False)
+        self.ui.couple_save.clicked.connect(self.save_couple_video)
 
         # right left button
         self.ui.right_one_frame.setEnabled(False)
@@ -88,7 +94,7 @@ class MainWindow(QMainWindow):
                 break
             video_frame.append(frame)
 
-        self.frames = np.stack(video_frame, axis=0)   
+        self.frames = np.array(video_frame)   
 
         self.ui.tl_slider.setMinimum(0)
         self.ui.tl_slider.setMaximum(self.num_frames-1)
@@ -122,7 +128,7 @@ class MainWindow(QMainWindow):
                 break
             video_frame.append(frame)
 
-        self.frames2 = np.stack(video_frame, axis=0)   
+        self.frames2 = np.array(video_frame)   
         self.ui.tl_slider2.setMinimum(0)
         self.ui.tl_slider2.setMaximum(self.num_frames2-1)
         self.ui.tl_slider2.setValue(0)
@@ -135,6 +141,7 @@ class MainWindow(QMainWindow):
         self.show_current_frame2()
         self.ui.playBtn2.setEnabled(True)
         self.ui.doubleplay.setEnabled(True)
+        self.ui.couple_save.setEnabled(True)
 
     def tl_slide(self): # 只要slider(cursur)一改變，就要改變顯示的幀數，不管事正常播放或是拖拉
         self.cursur = self.ui.tl_slider.value() #  改變顯示的幀數
@@ -237,7 +244,49 @@ class MainWindow(QMainWindow):
         # self.tl_slide will trigger on setValue
         self.cursur2 = min(self.cursur2+1, self.num_frames2-1)
         self.ui.tl_slider2.setValue(self.cursur2)
-        
+    
+    def save_couple_video(self):
+        cursur1 = self.cursur
+        cursur2 = self.cursur2
+        numframes = self.num_frames
+        numframes2 = self.num_frames2
+
+        right1 = numframes - cursur1
+        right2 = numframes2 - cursur2
+
+        stream = cv2.VideoCapture(self.filename)                      # 影像路徑
+        stream2 = cv2.VideoCapture(self.filename2)                    # 影像路徑
+
+
+        # 創建一個視頻寫入器，將同步的影片寫入新的文件中
+        videoWriter = cv2.VideoWriter('synced_video1.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.fps, (int(stream.get(cv2.CAP_PROP_FRAME_WIDTH)), int(stream.get(cv2.CAP_PROP_FRAME_HEIGHT))))
+        videoWriter2 = cv2.VideoWriter('synced_video2.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.fps2, (int(stream2.get(cv2.CAP_PROP_FRAME_WIDTH)), int(stream2.get(cv2.CAP_PROP_FRAME_HEIGHT))))
+
+        counter = 0
+        counter2 = 0
+
+        while True:
+            # 從兩個影片中讀取當前幀
+            if counter != cursur1:
+                ret1, frame1 = stream.read()
+                counter += 1
+            if counter2 != cursur2:
+                ret2, frame2 = stream2.read()
+                counter2 += 1 
+
+            if counter == cursur1 and counter2 == cursur2:
+                break
+
+
+        while True:
+
+            ret1, frame1 = stream.read()
+            ret2, frame2 = stream2.read()
+            # 如果其中一個影片已經讀取到結束，則退出循環
+            if not ret1 or not ret2:
+                break
+            videoWriter.write(frame1)
+            videoWriter2.write(frame2)
 
 
 if __name__ == "__main__":

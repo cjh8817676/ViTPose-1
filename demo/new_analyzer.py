@@ -28,21 +28,6 @@ from pykalman import KalmanFilter
 HUMAN_MASK = 1  # The number of the human mask
 BAR_MASK   = 2  # The number of the bar mask
 
-imu_data_pd = pd.DataFrame()
-imu_data_len = 0
-imu_sample_rate = 400
-imu_data_gyrox = []
-imu_data_gyroy = []
-imu_data_gyroz = []
-imu_data_accx = []
-imu_data_accy = []
-imu_data_accz = []
-imu_data_haccx = []
-imu_data_haccy = []
-imu_data_haccz = []
-imu_data_left = 0
-imu_data_right = 1200
-
 handoff_radius = 30 # 30 pixel
 
 # coco pose
@@ -415,8 +400,6 @@ class MainWindow(QMainWindow):
             
         else:
             print('no gt_jointangle.xlsx found')   
-            
-        
         if os.path.isfile(self.gt_joint_path):
             gt_joint_data = pd.read_excel(self.gt_joint_path)
             gt_joint_data.columns = gt_joint_data.iloc[0]
@@ -468,8 +451,6 @@ class MainWindow(QMainWindow):
             self.gt_knee_coord = gt_joint_data.iloc[:,10:12].to_numpy()
             self.gt_hip_coord = gt_joint_data.iloc[:,12:14].to_numpy()
             self.gt_shoulder_coord = gt_joint_data.iloc[:,14:16].to_numpy()
-            
-            
         else:
             self.gt_height_data = None
             print('no gt_joint.xlsx found')   
@@ -618,12 +599,6 @@ class MainWindow(QMainWindow):
         self.cursur = 0
         self.show_current_frame()
 
-        # print('mae:',mae(self.gt_height_data,self.head_height_data))
-        # pdb.set_trace()
-        
-        # find peak of height (prominence: remove fake peak value)
-        # self.local_max_height_point, _ = find_peaks(self.head_height_data,prominence=2) 
-        
         # gui timer 再讀完影片之後才啟動
         self.height_pg_timer.start() # 50ms
         self.twist_pg_timer.start() # 50ms
@@ -781,17 +756,6 @@ class MainWindow(QMainWindow):
             
             self.height_pg.plot(data,pen=(255,0,0), x = time2)
             self.height_pg.plot([time2[self.cursur]],[data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
-            
-
-        # 隨時間更新Plot
-        # data = self.head_height_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-        # self.height_curve.setData(data)
-        # self.height_curve.setPos(self.cursur, 0)
-        
-        # if self.gt_height_data is not None:
-        #     data2 = self.gt_height_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-        #     self.gt_height_curve.setData(data2)
-        #     self.gt_height_curve.setPos(self.cursur, 0)
 
     def update_twist(self):
         # pdb.set_trace()
@@ -803,26 +767,6 @@ class MainWindow(QMainWindow):
         if self.gt_shoulder_angle_data is not None:
             self.twist_pg.plot(self.gt_shoulder_angle_data,pen=(255,0,0))
             self.twist_pg.plot([self.cursur],[self.gt_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
-
-
-        #  angular speed of hip (deprecated)
-        # self.twist_pg.clear()
-        # self.twist_pg.plot(self.twist_data)
-        # self.twist_pg.plot([self.cursur],[self.twist_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-        
-        # if self.gt_augular_speed_data is not None:
-        #     self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0))
-        #     self.twist_pg.plot([self.cursur],[self.gt_augular_speed_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
-            
-        # 隨時間更新Plot
-        # data = self.twist_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-        # self.twist_curve1.setData(data)
-        # self.twist_curve1.setPos(self.cursur, 0)
-        
-        # if self.gt_augular_speed_data is not None:
-        #     data2 = self.gt_augular_speed_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-        #     self.twist_gt_curve1.setData(data2)
-        #     self.twist_gt_curve1.setPos(self.cursur, 0)
 
         
     def update_hand_off(self):

@@ -46,6 +46,9 @@ class Ui_MainWindow(object):
         self.playBtn.setObjectName("playBtn")
         self.playBtn2 = QtWidgets.QPushButton(self.button_widget)
         self.playBtn2.setObjectName("playBtn2")
+        self.couple_save = QtWidgets.QPushButton(self.button_widget)
+        self.couple_save.setObjectName("couple_save")
+
 
         self.doubleplay = QtWidgets.QPushButton(self.button_widget)
         self.doubleplay.setObjectName("doubleplay")
@@ -133,6 +136,7 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout_2.addWidget(self.doubleplay)
         self.horizontalLayout_2.addWidget(self.doubleinverseplay)
+        self.horizontalLayout_2.addWidget(self.couple_save)
 
         # 時間條
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.video_progress)
@@ -140,7 +144,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.addWidget(self.tl_slider)
         self.horizontalLayout_3.addItem(spacerItem2)
         self.horizontalLayout_3.addWidget(self.position_label)
-
+        # 時間條
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.video_progress2)
         self.horizontalLayout_4.setObjectName("horizontalLayout_3")
         self.horizontalLayout_4.addWidget(self.tl_slider2)
@@ -190,6 +194,7 @@ class Ui_MainWindow(object):
         self.actionMotion_Analysis.setText(_translate("MainWindow", "Motion Analysis"))
         self.doubleplay.setText(_translate("MainWindow", "doubleplay"))
         self.doubleinverseplay.setText(_translate("MainWindow", "doubleinverseplay"))
+        self.couple_save.setText(_translate("MainWindow", "couplesave"))
 
 
 if __name__ == "__main__":
