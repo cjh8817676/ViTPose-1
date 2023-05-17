@@ -18,14 +18,12 @@ file_path = os.path.dirname(__file__)
 from numba import jit
 from collections import defaultdict
 from defaultlist import defaultlist
-<<<<<<< HEAD
 
-=======
 from scipy.signal import find_peaks
 
 HUMAN_MASK = 1  # The number of the human mask
 BAR_MASK   = 2  # The number of the bar mask
->>>>>>> MVPose
+
 
 imu_data_pd = pd.DataFrame()
 imu_data_len = 0
@@ -42,10 +40,8 @@ imu_data_haccz = []
 imu_data_left = 0
 imu_data_right = 1200
 
-<<<<<<< HEAD
 
-=======
->>>>>>> MVPose
+
 handoff_radius = 30 # 30 pixel
 
 # coco pose
