@@ -369,6 +369,7 @@ class MainWindow(QMainWindow):
         imu_data_left = 0
         imu_data_right = 1200
         self.filename, _ = QFileDialog.getOpenFileName(self, "Open Video")
+        self.file_path = os.path.dirname(self.filename)
         print('video_name:', self.filename)
         video_name = self.filename.split('x')[-1]
         video_form = video_name.split('.')[1]
@@ -378,10 +379,10 @@ class MainWindow(QMainWindow):
         video_mask = video_mask.replace('ViTPose_','')
         self.mask_path = os.path.join('./workspace/',video_mask, "masks/") 
         # pdb.set_trace()
-        if os.path.isfile(os.path.join('./vis_results/','gt_' + video_mask+'.'+video_form+'.json')):
-            self.motion_json_path = os.path.join('./vis_results/','gt_' + video_mask+'.'+video_form+'.json')
+        if os.path.isfile(os.path.join(f'{self.file_path}','gt_' + video_mask+'.'+video_form+'.json')):
+            self.motion_json_path = os.path.join(f'{self.file_path}','gt_' + video_mask+'.'+video_form+'.json')
         else:
-            self.motion_json_path = os.path.join('./vis_results/',video_mask+'.'+video_form+'.json')
+            self.motion_json_path = os.path.join(f'{self.file_path}',video_mask+'.'+video_form+'.json')
 
         self.gt_head_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_head.xlsx')
         self.gt_belly_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_belly.xlsx')
@@ -565,9 +566,9 @@ class MainWindow(QMainWindow):
                 )
                 # pdb.set_trace()
                 self.left_hip_angle_data.append(calculate_angle_left_body([self.l_hip[counter] ,self.l_knee[counter] , self.l_shoulder[counter]]))
-                self.left_shoulder_angle_data.append(calculate_angle_left_body([self.l_shoulder[counter], self.l_elbow[counter] , self.l_hip[counter]]))
-                self.right_hip_angle_data.append(calculate_angle_right_body([self.r_hip[counter] , self.r_knee[counter], self.r_elbow[counter]]))
-                self.right_shoulder_angle_data.append(calculate_angle_right_body([self.l_shoulder[counter], self.l_elbow[counter] , self.l_hip[counter]]))
+                self.left_shoulder_angle_data.append(calculate_angle_left_body([self.l_shoulder[counter], self.l_wrist[counter] , self.l_hip[counter]]))
+                self.right_hip_angle_data.append(calculate_angle_right_body([self.r_hip[counter] , self.r_knee[counter], self.r_shoulder[counter]]))
+                self.right_shoulder_angle_data.append(calculate_angle_right_body([self.r_shoulder[counter], self.r_wrist[counter] , self.r_hip[counter]]))
                 
                 
                 if check_handoff(self.horizontal_bar_points,[self.l_wrist[counter],self.r_wrist[counter]],self.human_mask_data[counter]): # check if handoff

@@ -4,6 +4,7 @@ import os
 import os.path as osp
 import warnings
 
+import pdb
 import mmcv
 import torch
 from mmcv import Config, DictAction
@@ -120,8 +121,10 @@ def main():
         init_dist(args.launcher, **cfg.dist_params)
 
     # build the dataloader
+    # pdb.set_trace()
     dataset = build_dataset(cfg.data.test, dict(test_mode=True))
     # step 1: give default values and override (if exist) from cfg.data
+    # pdb.set_trace()
     loader_cfg = {
         **dict(seed=cfg.get('seed'), drop_last=False, dist=distributed),
         **({} if torch.__version__ != 'parrots' else dict(
@@ -143,6 +146,7 @@ def main():
         **dict(samples_per_gpu=cfg.data.get('samples_per_gpu', 1)),
         **cfg.data.get('test_dataloader', {})
     }
+    # pdb.set_trace()
     data_loader = build_dataloader(dataset, **test_loader_cfg)
 
     # build the model and load checkpoint

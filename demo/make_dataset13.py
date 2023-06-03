@@ -10,9 +10,6 @@ import os
 import json
 import sys
 import pdb
-import mmcv
-from mmcv.utils.misc import deprecated_api_warning
-from mmcv.visualization.color import color_val
 
 
 class ZoomableLabel(QLabel):
@@ -72,6 +69,7 @@ class ZoomableLabel(QLabel):
                                        [ 51, 153, 255]])
         self.thickness = 1
         self.radius = 4
+        self.flag = 1
         
         
     def set_skeleton(self, keypoints):
@@ -111,6 +109,9 @@ class ZoomableLabel(QLabel):
             for i, point in enumerate(self.points):
                 if (event.pos() - point).manhattanLength() < 10:
                     self.dragging_index = i   # 找出第幾點被拖拉
+                    font = QFont()
+                    font.setPointSize(16)
+                    QToolTip.setFont(font)  # Set the tooltip font
                     QToolTip.showText(event.globalPos(), self.body_part[self.dragging_index])
                     break
         
@@ -205,12 +206,12 @@ class ZoomableLabel(QLabel):
                 r,g,b = self.pose_kpt_color[i]
                 color = QColor(b,g,r)
                 painter.setBrush(QBrush(color))
-                painter.drawEllipse(point, 3, 3)
+                painter.drawEllipse(point, 5, 5)
                 
             for index ,link in enumerate(self.skeleton):
                 r,g,b = self.pose_link_color[index]
                 color = QColor(b,g,r)
-                painter.setPen(QPen(color, 2))
+                painter.setPen(QPen(color, 5))
                 painter.drawLine(self.points[link[0]], self.points[link[1]])
                 
     def zoom_in(self):
@@ -290,7 +291,10 @@ class VideoPlayer(QMainWindow):
 
         # Frame control
         QShortcut(QKeySequence("F"), self, self.next_frame)
-        QShortcut(QKeySequence("D"), self, self.prev_frame)
+        QShortcut(QKeySequence("G"), self, self.next_frame2)
+        QShortcut(QKeySequence("H"), self, self.next_frame3)
+        QShortcut(QKeySequence("I"), self, self.next_frame4)
+        QShortcut(QKeySequence("D"), self, self.prev_frame) 
         QShortcut(QKeySequence("R"), self, self.reset_zoom) # Reset zoom shortcut
 
         self.cap = None
@@ -316,10 +320,14 @@ class VideoPlayer(QMainWindow):
             '/home/m11002125/ViTPose/vis_results',"Video files (*.mp4 *.avi *.MOV)")
         video_name = fname.split('/')[-1]
         video_name = video_name.replace('vis_','')
+        try:
+            video_name = video_name.replace('ViTPose_','')
+        except:
+           pass
         if sys.platform == "linux":
             data_path = fname.split('/')[1:-1]
             self.video_name = video_name
-            self.motion_json_path = ''
+            self.motion_json_path = '/'
             for i in data_path:
                 self.motion_json_path = os.path.join(self.motion_json_path,i)
             self.motion_json_path = os.path.join(self.motion_json_path,self.video_name + '.json')
@@ -333,17 +341,22 @@ class VideoPlayer(QMainWindow):
             
             self.gt_motion_json = self.motion_json_path.replace(self.video_name , 'gt_'+self.video_name )
 
+            if os.path.isfile(self.gt_motion_json):
+                self.motion_json_path = self.gt_motion_json
+
+
         
         if fname:
             self.cap = cv2.VideoCapture(fname)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             self.slider.setMaximum(self.total_frames - 1)
             self.slider.setMinimum(0)
+            # pdb.set_trace()
             with open(self.motion_json_path) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
-                self.pose_data = json.load(f)
+                self.pose_data = json.load(f)         # 原資料
             
         self.keypoints = {}
-        self.pose_result = []
+        self.pose_result = []                         # 儲存關節的變動結果
         # pdb.set_trace()  
         for i in self.pose_data:
             bodys_coord = []
@@ -358,6 +371,7 @@ class VideoPlayer(QMainWindow):
         
         self.slider.setValue(self.current_frame)
         self.set_position(self.current_frame)
+        print('self.motion_json_path',self.motion_json_path)
         # pdb.set_trace()   
         print('finish')
         
@@ -429,10 +443,60 @@ class VideoPlayer(QMainWindow):
             self.current_frame = position  # Update current frame number
             self.play_video()
 
-    def next_frame(self):
+    def next_frame(self):  
+        updated_skeleton = self.video_label.get_updated_skeleton()  # 獲取最後更新的骨架
+        
+        if updated_skeleton is not None:
+            self.pose_result[self.current_frame - 1] = updated_skeleton  # 更新pose_result
+        # pdb.set_trace()
+        if self.cap.isOpened():
+            if self.current_frame + 1 <= self.total_frames:
+                self.browsing_single_frame = True  # Set browsing_single_frame to True
+                # self.current_frame += 1  # 在播放影片的時候，的最後一步就已經+1了。 所以+1也是要在playvideo之後。
+                self.frame_label.setText(f"Frame: {self.current_frame}")  # Update this line
+                self.play_video()
+                self.current_frame += 1
+                self.browsing_single_frame = False  # Reset browsing_single_frame to False
+    
+    def next_frame2(self):  # 左半身可見，右半身不可見
         updated_skeleton = self.video_label.get_updated_skeleton()  # 獲取最後更新的骨架
         if updated_skeleton is not None:
             self.pose_result[self.current_frame - 1] = updated_skeleton  # 更新pose_result
+        self.visible_list = [1,1,1,1,1,2,1,2,1,2,1,2,1,2,1,2,1]
+
+        # pdb.set_trace()
+        if self.cap.isOpened():
+            if self.current_frame + 1 <= self.total_frames:
+                self.browsing_single_frame = True  # Set browsing_single_frame to True
+                # self.current_frame += 1  # 在播放影片的時候，的最後一步就已經+1了。 所以+1也是要在playvideo之後。
+                self.frame_label.setText(f"Frame: {self.current_frame}")  # Update this line
+                self.play_video()
+                self.current_frame += 1
+                self.browsing_single_frame = False  # Reset browsing_single_frame to False
+    
+    def next_frame3(self):  # 右半身可見，左半身不可見
+        updated_skeleton = self.video_label.get_updated_skeleton()  # 獲取最後更新的骨架
+        if updated_skeleton is not None:
+            updated_skeleton
+            self.pose_result[self.current_frame - 1] = updated_skeleton  # 更新pose_result
+        self.visible_list = [1,1,1,1,1,1,2,1,2,1,2,1,2,1,2,1,2]
+
+        # pdb.set_trace()
+        if self.cap.isOpened():
+            if self.current_frame + 1 <= self.total_frames:
+                self.browsing_single_frame = True  # Set browsing_single_frame to True
+                # self.current_frame += 1  # 在播放影片的時候，的最後一步就已經+1了。 所以+1也是要在playvideo之後。
+                self.frame_label.setText(f"Frame: {self.current_frame}")  # Update this line
+                self.play_video()
+                self.current_frame += 1
+                self.browsing_single_frame = False  # Reset browsing_single_frame to False
+                
+    def next_frame4(self):  # 左、右半身都可見
+        updated_skeleton = self.video_label.get_updated_skeleton()  # 獲取最後更新的骨架
+        if updated_skeleton is not None:
+            updated_skeleton
+            self.pose_result[self.current_frame - 1] = updated_skeleton  # 更新pose_result
+        self.visible_list = [1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2]
         # pdb.set_trace()
         if self.cap.isOpened():
             if self.current_frame + 1 <= self.total_frames:
@@ -468,8 +532,6 @@ class VideoPlayer(QMainWindow):
     
         
     def save_new_json(self):
-        output_file = self.pose_data
-        
         for i, arr in enumerate(self.pose_result):
             data = arr.flatten().tolist()
             result = []
@@ -477,10 +539,10 @@ class VideoPlayer(QMainWindow):
                 result.extend(data[j:j+2])
                 result.append(1)
                 
-            output_file[i]['keypoints'] = result
+            self.pose_data[i]['keypoints'] = result
         
         with open(self.gt_motion_json, "w") as outfile:
-            json.dump(output_file, outfile)
+            json.dump(self.pose_data, outfile)
             
 if __name__ == '__main__':
     app = QApplication([])

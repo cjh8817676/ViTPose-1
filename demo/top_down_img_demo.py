@@ -9,6 +9,7 @@ from mmpose.apis import (inference_top_down_pose_model, init_pose_model,
                          vis_pose_result)
 from mmpose.datasets import DatasetInfo
 
+import pdb
 
 def main():
     """Visualize the demo images.
@@ -76,7 +77,6 @@ def main():
 
     # e.g. use ('backbone', ) to return backbone feature
     output_layer_names = None
-
     # process each image
     for i in range(len(img_keys)):
         # get bounding box annotations

@@ -3,15 +3,9 @@
 bash tools/dist_train.sh <Config PATH> <NUM GPUs> --cfg-options model.pretrained=<Pretrained PATH> --seed 0
 
 ex: 
-bash tools/dist_train.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py 1 --cfg-options model.pretrained=pretrained_model/small_pretrained.pth --seed 0
+bash tools/dist_train.sh configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py 1 --cfg-options model.pretrained="pretrained_model/small_pretrained.pth" --seed 0
 
-----------------------------------------------------------------------------------------
-# To test the pretrained models performance, please run
-bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
-
-ex:
-bash tools/dist_test.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py pretrained_model/vitpose+_small.pth 1
-
+訓練
 
 換成python指令:
 python tools/train.py     \
@@ -21,7 +15,45 @@ python tools/train.py     \
     --seed 0    \
     --launcher "none"
 
-runfile('tools/train.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py --cfg-options model.pretrained=pretrained_model/small_pretrained.pth --gpus 1 --seed 0 --launcher "none"',wdir='/home/m11002125/VITPOSE/')
+# spyder 指令進行域訓練 vitpose_small、
+runfile('tools/train.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py --cfg-options model.pretrained=pretrained_model/small_pretrained.pth --gpus 1 --seed 0 --launcher "none"',wdir='/home/m11002125/ViTPose/')
+
+runfile('tools/train.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py --cfg-options model.pretrained=pretrained_model/vitpose-b.pth --gpus 1 --seed 0 --launcher "none"',wdir='/home/m11002125/ViTPose/')
+
+
+
+# 使用我的客製化訓練資料集
+bash tools/dist_train.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_gymcoco_256x192.py 1 --cfg-options model.pretrained=pretrained_model/vitpose-b.pth  --seed 0
+
+runfile('tools/train.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_gymcoco_256x192.py --cfg-options model.pretrained=pretrained_model/vitpose-b.pth --gpus 1 --seed 0 --launcher "none"',wdir='/home/m11002125/ViTPose/')
+
+
+
+
+----------------------------------------------------------------------------------------
+# To test the pretrained models performance, please run
+bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
+
+ex:
+bash tools/dist_test.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/vitPose+_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py pretrained_model/vitpose+_small.pth 1
+
+bash tools/dist_test.sh /home/m11002125/ViTPose/configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py pretrained_model/vitpose-b.pth 1
+
+spyder 指令:
+runfile('tools/test.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py pretrained_model/vitpose-b.pth --launcher "none"',wdir='/home/m11002125/ViTPose/')
+
+-----------------------------------------------------------------------------------------
+image demo:
+
+python demo/top_down_img_demo.py \
+    configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py \
+    pretrained_model/vitpose-h.pth \
+    --json-file  /home/m11002125/ViTPose/data/bestgym/test.json \
+    --img-root /home/m11002125/ViTPose/data/bestgym/test/ \
+    --out-img-root vis_results/images
+
+runfile('demo/top_down_img_demo.py',args='configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py   pretrained_model/vitpose-h.pth    --json-file  /home/m11002125/ViTPose/data/bestgym/test.json     --img-root /home/m11002125/ViTPose/data/bestgym/test/  --out-img-root vis_results/images',wdir='/home/m11002125/ViTPose/')
+
 
 
 -----------------------------------------------------------------------------------------
@@ -56,7 +88,7 @@ use xmem as detector.
 python demo/top_down_video_demo_with_xmem.py --pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2
 
 # vitpose
-runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
+runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/ViTPose/')
 
 # vitpose : 影片路徑最好選絕對路徑 痾痾
 runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py --pose_checkpoint pretrained_model/vitpose-h.pth --video-path "/home/m11002125/test_video/0214/test_3/test_3.mp4" --out-video-root vis_results --size -1 --video "/home/m11002125/test_video/0214/test_3/test_3.mp4" --num_objects 2',wdir='/home/m11002125/ViTPose')
@@ -65,11 +97,16 @@ runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '
 runfile('/home/m11002125/ViTPose/demo/top_down_video_demo_with_xmem.py', args= '--pose_config configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/hrnet_w48_coco_384x288.py --pose_checkpoint pretrained_model/hrnet_w48_coco_384x288_20200708 --video-path test_video/cat_jump.mp4 --out-video-root vis_results --size -1 --video /home/m11002125/test_video/cat_jump.mp4 --num_objects 2',wdir='/home/m11002125/VITPOSE/')
 
 
+假設你已經把請片的所有幀都已經傳播完成，也就是每一個都有Mask了，倘若你下次只想要做Pose Estimation，可以直接點"Load Mask"的按鈕，你傳播了幾幀，他就會生成多少的bbox的相關資料。
+
+就可以只替start還有end，可以決定Pose Estimation的起始與結束幀。
 
 ----------------------------------------------------------------------------------------------------------
 motion analysis:
 
-runfile('/home/m11002125/ViTPose/demo/analyzer.py', wdir='/home/m11002125/ViTPose')
+runfile('demo/new_analyzer.py', wdir='/home/m11002125/ViTPose')
+runfile('data_analysis/new_analyzer.py', wdir='/home/m11002125/ViTPose')
+
 
 
 ----------------------------------------------------------------------------------------------------------
