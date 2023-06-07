@@ -14,8 +14,8 @@ from ...builder import DATASETS
 from ..base import Kpt2dSviewRgbImgTopDownDataset
 
 
-@DATASETS.register_module()
-class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
+@DATASETS.register_module('TopDownGymCocoDataset')
+class TopDownGymCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
     """CocoDataset dataset for top-down pose estimation.
 
     "Microsoft COCO: Common Objects in Context", ECCV'2014.
@@ -88,7 +88,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         self.nms_thr = data_cfg['nms_thr']
         self.oks_thr = data_cfg['oks_thr']
         self.vis_thr = data_cfg['vis_thr']
-        pdb.set_trace()
+        # pdb.set_trace()
         self.db = self._get_db()
 
         print(f'=> num_images: {self.num_images}')
@@ -141,7 +141,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
             y1 = max(0, y)
             x2 = min(width - 1, x1 + max(0, w - 1))
             y2 = min(height - 1, y1 + max(0, h - 1))
-            if ('area' not in obj or obj['area'] > 0) and x2 > x1 and y2 > y1:
+            if ('area' not in obj or obj['area'] >= 0) and x2 > x1 and y2 > y1:
                 obj['clean_bbox'] = [x1, y1, x2 - x1, y2 - y1]
                 valid_objs.append(obj)
         objs = valid_objs
@@ -187,7 +187,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         all_boxes = None
         with open(self.bbox_file, 'r') as f:
             all_boxes = json.load(f)
-        # pdb.set_trace()
+
         if not all_boxes:
             raise ValueError('=> Load %s fail!' % self.bbox_file)
 
@@ -198,6 +198,13 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         for det_res in all_boxes:
             if det_res['category_id'] != 1:
                 continue
+            
+            print('self.img_prefix:',self.img_prefix)
+            # print('self.id2name',self.id2name)
+            print('det_res:',det_res)
+            print('det_res["image_id"]',det_res['image_id'])
+
+            print('self.id2name[det_res["image_id"]]',self.id2name[det_res['image_id']])
 
             image_file = osp.join(self.img_prefix,
                                   self.id2name[det_res['image_id']])

@@ -6,10 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-
     <width>1158</width>
     <height>777</height>
-
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,7 +16,6 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
-
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
@@ -26,7 +23,6 @@
    <enum>Qt::LeftToRight</enum>
   </property>
   <widget class="QWidget" name="centralwidget">
-
    <layout class="QHBoxLayout" name="horizontalLayout_5">
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -135,12 +131,10 @@
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
-
         </property>
        </widget>
       </item>
       <item>
-
        <widget class="QWidget" name="video_progress" native="true">
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
@@ -843,12 +837,10 @@
         </property>
         <property name="text">
          <string>高度 (Height)</string>
-
         </property>
        </widget>
       </item>
       <item>
-
        <widget class="PlotWidget" name="height_pg" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -876,12 +868,10 @@
         </property>
         <property name="text">
          <string>轉速 (TWIST &amp; TURN ROTATION SPEED)</string>
-
         </property>
        </widget>
       </item>
       <item>
-
        <widget class="PlotWidget" name="twist_pg" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
@@ -909,12 +899,10 @@
         </property>
         <property name="text">
          <string>滯空時間 (HAND OFF TIME)</string>
-
         </property>
        </widget>
       </item>
       <item>
-
        <widget class="PlotWidget" name="hand_off_pg" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
@@ -930,24 +918,19 @@
         </property>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(0, 0, 255);</string>
-
         </property>
        </widget>
       </item>
      </layout>
-
     </item>
    </layout>
-
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-
      <width>1158</width>
-
      <height>20</height>
     </rect>
    </property>

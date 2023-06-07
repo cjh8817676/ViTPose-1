@@ -182,6 +182,7 @@ def main():
             mmpose_version=__version__ + get_git_hash(digits=7),
             config=cfg.pretty_text,
         )
+    # pdb.set_trace()
     train_model(
         model,                          # decided by cfg
         datasets,                       # decided by cfg
