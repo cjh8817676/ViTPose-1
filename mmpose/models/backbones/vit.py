@@ -253,13 +253,13 @@ class ViT(BaseBackbone):
             for param in self.patch_embed.parameters():
                 param.requires_grad = False
 
-        for i in range(1, self.frozen_stages + 1):
+        for i in range(1, self.frozen_stages + 1): # 不論甚麼樣的模型，有輸入到輸出，被指定就被凍結
             m = self.blocks[i]
             m.eval()
             for param in m.parameters():
                 param.requires_grad = False
 
-        if self.freeze_attn:
+        if self.freeze_attn:                    # 凍結所有TTransformer Block裡面的MHSA
             for i in range(0, self.depth):
                 m = self.blocks[i]
                 m.attn.eval()
@@ -269,7 +269,7 @@ class ViT(BaseBackbone):
                 for param in m.norm1.parameters():
                     param.requires_grad = False
 
-        if self.freeze_ffn:
+        if self.freeze_ffn:                      # 凍結所有Transformer Block裡面的FFN
             self.pos_embed.requires_grad = False
             self.patch_embed.eval()
             for param in self.patch_embed.parameters():

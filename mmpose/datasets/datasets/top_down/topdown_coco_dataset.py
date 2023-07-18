@@ -30,6 +30,8 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         0: 'nose',
         1: 'left_eye',
         2: 'right_eye',
+        
+        
         3: 'left_ear',
         4: 'right_ear',
         5: 'left_shoulder',
@@ -88,7 +90,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         self.nms_thr = data_cfg['nms_thr']
         self.oks_thr = data_cfg['oks_thr']
         self.vis_thr = data_cfg['vis_thr']
-        pdb.set_trace()
+        # pdb.set_trace()
         self.db = self._get_db()
 
         print(f'=> num_images: {self.num_images}')
@@ -298,6 +300,7 @@ class TopDownCocoDataset(Kpt2dSviewRgbImgTopDownDataset):
         vis_thr = self.vis_thr
         oks_thr = self.oks_thr
         valid_kpts = []
+        # pdb.set_trace()
         for image_id in kpts.keys():
             img_kpts = kpts[image_id]
             for n_p in img_kpts:

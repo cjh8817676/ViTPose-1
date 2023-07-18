@@ -4,11 +4,11 @@ _base_ = [
 ]
 evaluation = dict(interval=10, metric='mAP', save_best='AP')
 
-optimizer = dict(type='AdamW', lr=1e-4, betas=(0.9, 0.999), weight_decay=0.1,
+optimizer = dict(type='AdamW', lr=5e-4, betas=(0.9, 0.999), weight_decay=0.1,
                  constructor='LayerDecayOptimizerConstructor', 
                  paramwise_cfg=dict(
-                                    num_layers=12, 
-                                    layer_decay_rate=0.75,
+                                    num_layers=32, 
+                                    layer_decay_rate=0.85,
                                     custom_keys={
                                             'bias': dict(decay_multi=0.),
                                             'pos_embed': dict(decay_mult=0.),
@@ -27,7 +27,7 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=0.001,
     step=[170, 200])
-total_epochs = 50
+total_epochs = 210
 target_type = 'GaussianHeatmap'
 channel_cfg = dict(
     num_output_channels=17,
@@ -39,7 +39,7 @@ channel_cfg = dict(
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
     ])
 
-load_from = '/home/m11002125/ViTPose/pretrained_model/vitpose-b.pth'
+load_from = '/home/m11002125/ViTPose/pretrained_model/vitpose-h.pth'
 
 # model settings
 model = dict(
@@ -49,20 +49,20 @@ model = dict(
         type='ViT',
         img_size=(256, 192),
         patch_size=16,
-        embed_dim=768,
-        depth=12,
-        num_heads=12,
+        embed_dim=1280,
+        depth=32,
+        num_heads=16,
         ratio=1,
         use_checkpoint=False,
         mlp_ratio=4,
         qkv_bias=True,
-        drop_path_rate=0.3,
+        drop_path_rate=0.55,
         freeze_attn = True,
         freeze_ffn = True,
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
-        in_channels=768,
+        in_channels=1280,
         num_deconv_layers=2,
         num_deconv_filters=(256, 256),
         num_deconv_kernels=(4, 4),
@@ -141,13 +141,14 @@ val_pipeline = [
 ]
 
 test_pipeline = val_pipeline
+
 data_cooc_root = 'data/coco'
 data_root = 'data/bestgym'
 data = dict(
-    samples_per_gpu=128,
-    workers_per_gpu=4,
-    val_dataloader=dict(samples_per_gpu=64),
-    test_dataloader=dict(samples_per_gpu=64),
+    samples_per_gpu=16,
+    workers_per_gpu=1,
+    val_dataloader=dict(samples_per_gpu=16),
+    test_dataloader=dict(samples_per_gpu=16),
     train=dict(
             type='TopDownGymCocoDataset',
             ann_file=f'{data_root}/train.json',
@@ -171,4 +172,3 @@ data = dict(
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
 )
-
