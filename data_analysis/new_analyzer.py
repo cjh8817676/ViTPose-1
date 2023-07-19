@@ -59,6 +59,7 @@ def find_human_mask(original_mask):
     
     rows,cols = np.where((original_mask[:,:]==HUMAN_MASK))
     
+    
     for i,j in zip(rows,cols):
         human_mask_point.append([j,i])
         # print(i,j)
@@ -238,7 +239,7 @@ def median_filter(signal, window_size):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        uic.loadUi("./demo/new_gui.ui", self)
+        uic.loadUi("/home/m11002163/lab_project/ViTPose-1/demo/new_gui.ui", self)
         
         # start frame
         self.start_frame = 0
