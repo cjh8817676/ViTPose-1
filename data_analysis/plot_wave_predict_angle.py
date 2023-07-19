@@ -6,6 +6,7 @@ import pdb
 import math
 import matplotlib.pyplot as plt
 import re
+from scipy.signal import medfilt
 '''
 l_eye.append(i['keypoints'][3:5])
 r_eye.append(i['keypoints'][6:8])
@@ -26,8 +27,10 @@ r_ankle.append(i['keypoints'][48:50])
 '''
 
 '''
-read .json(predict) and .xlsx(gt)  and compare their difference and visualization.
+read .json(predict) and plot. 
 '''
+
+sub3_list = [(0,735),(0,740),(0,690),(0,715),(0,740),(0,751)]
 
 
 def moving_average_filter(data, window_size = 5):
@@ -56,6 +59,7 @@ def median_filter(signal, window_size):
         lower_bound = max(0, i - window_size // 2)
         upper_bound = min(len(signal), i + window_size // 2 + 1)
         filtered_signal[i] = np.median(signal[lower_bound:upper_bound])
+        
     return filtered_signal
 def calculate_angle_left_body(pointlist):
 
@@ -102,7 +106,7 @@ def calculate_angle_right_body(pointlist):
     return angle+360 if angle < 0 else angle
 
 def read_files(sub_folder,action):
-    base_path = "predict_json"
+    base_path = "output_results"
     sub_path = os.path.join(base_path, sub_folder)
     files = os.listdir(sub_path)
 
@@ -119,29 +123,11 @@ def read_files(sub_folder,action):
 
     return fail_files, success_files
 
-def read_gtfiles(sub,action):
-    base_path = "tracker_gt_output_results"
-    files = os.listdir(base_path)
-
-    gt_fail_files = []
-    gt_success_files = []
-    for file in files:
-        if action in file:
-            if sub in file and 'joint' in file:
-                if "fail" in file:
-                    gt_fail_files.append(os.path.join(base_path,file))
-                elif "success" in file:
-                    gt_success_files.append(os.path.join(base_path,file))
-               
-    return gt_fail_files,gt_success_files
-
 def process_json_data(json_data):
     keypoints = ['l_eye', 'r_eye', 'l_ear', 'r_ear', 'l_shoulder', 'r_shoulder', 'l_elbow', 'r_elbow',
                  'l_wrist', 'r_wrist', 'l_hip', 'r_hip', 'l_knee', 'r_knee', 'l_ankle', 'r_ankle']
     body_parts = {
-        'l_eye': slice(3, 5),    # pdb.set_trace()
-    # fail_files = sorted(fail_files)
-    # success_files = sorted(success_files)
+        'l_eye': slice(3, 5),
         'r_eye': slice(6, 8),
         'l_ear': slice(9, 11),
         'r_ear': slice(12, 14),
@@ -186,87 +172,32 @@ def process_json_data(json_data):
 
 if __name__ == "__main__":
     # pdb.set_trace()
-    # 讀取 'subn' 的所有檔案, 並指定動作: YAMAKI, TKATCHEV
-    subject = 'sub4'
-    action = 'TKATCHEV'
+    # 讀取 'sub1' 的所有檔案
+    subject = 'sub1'
+    action = 'YAMAWAKI'
     
     fail_files, success_files = read_files(subject,action)
-    
-    gt_fail_files,gt_success_files = read_gtfiles(subject,action)
-
-    
     fail_files = sorted(fail_files, key=lambda x: int(re.search(f'{subject}_(\d+)_', x).group(1)))
     success_files = sorted(success_files, key=lambda x: int(re.search(f'{subject}_(\d+)_', x).group(1)))
-    gt_fail_files = sorted(gt_fail_files, key=lambda x: int(re.search(f'{subject}_(\d+)_', x).group(1)))
-    gt_success_files = sorted(gt_success_files, key=lambda x: int(re.search(f'{subject}_(\d+)_', x).group(1)))
 
-    # pdb.set_trace()
-    '''
-    read gt file
-    '''
-    fail_xlsx = []
-    success_xlsx = []
-    
-    for file in gt_success_files:
-        if action in file:
-            pd_data = pd.read_excel(file)
-            pd_data = pd_data.iloc[1:]
-            pd_data.rename(columns = {f'{pd_data.columns[0]}': 'time'}, inplace = True)
-            pd_data.rename(columns = {f'{pd_data.columns[1]}': 'step'}, inplace = True)
-            pd_data.rename(columns = {'Unnamed: 3': 'shoulder_ω'}, inplace = True)
-            pd_data.rename(columns = {'Unnamed: 5': 'hip_ω'}, inplace = True)
-            success_xlsx.append(pd_data)
-            
-    for file in gt_fail_files:
-        if action in file:
-            # pdb.set_trace()
-            pd_data = pd.read_excel(file)
-            pd_data = pd_data.iloc[1:]
-            pd_data.rename(columns = {f'{pd_data.columns[0]}': 'time'}, inplace = True)
-            pd_data.rename(columns = {f'{pd_data.columns[1]}': 'step'}, inplace = True)
-            pd_data.rename(columns = {'Unnamed: 3': 'shoulder_ω'}, inplace = True)
-            pd_data.rename(columns = {'Unnamed: 5': 'hip_ω'}, inplace = True)
-            fail_xlsx.append(pd_data)
-            
-    # pdb.set_trace()
-    success_hip_angle_data = []
-    fail_hip_angle_data = []
-    success_shoulder_angle_data = []
-    fail_shoulder_angle_data = []
-    
-    for i in fail_xlsx:
-        fail_shoulder_angle_data.append(i['shoulder_angle'].tolist())
-        fail_hip_angle_data.append(i['hip_angle'].tolist())
-    counter = 0
-    for i in success_xlsx:
-        success_shoulder_angle_data.append(i['shoulder_angle'].tolist())
-        success_hip_angle_data.append(i['hip_angle'].tolist())
-        print('counter',counter)
-        counter += 1
-
-    # pdb.set_trace()
-    
-    '''
-    read predict file
-    '''
+    # fail_files = sorted(fail_files)
+    # success_files = sorted(success_files)
+     
     fail_json = []            
     success_json = []
     
     # read results of pose estimation.
     for file in success_files:
-        if action in file:
-            print(file)
-            with open(file) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
-                success_json.append(json.load(f))
+        print(file)
+        with open(file) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
+            success_json.append(json.load(f))
     for file in fail_files:
-        if action in file:
-            print(file)
-            with open(file) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
-                fail_json.append(json.load(f))
+        print(file)
+        with open(file) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
+            fail_json.append(json.load(f))
             
-            
-    # pdb.set_trace()
-    
+
+     
     success_rhip_angle_data = []
     fail_rhip_angle_data = []
     success_lhip_angle_data = []
@@ -297,6 +228,7 @@ if __name__ == "__main__":
         # fail_lhip_angle_data,
         # fail_rshoulder_angle_data,
         # fail_lshoulder_angle_data,
+        
         # success_rhip_angle_data,
         # success_lhip_angle_data,
         # success_rshoulder_angle_data
@@ -313,11 +245,6 @@ if __name__ == "__main__":
             success_lhip_angle_data,
             success_rshoulder_angle_data
         ]
-        # 有個地方要注意的是，每有指定左('l')右('r')的指的就是ground truth。
-        gt_data_lists = [fail_hip_angle_data,
-                         fail_shoulder_angle_data,
-                         success_hip_angle_data,
-                         success_shoulder_angle_data]
 
      # sub2 : left hip, rigth shoulder
     elif subject=='sub2':
@@ -331,11 +258,7 @@ if __name__ == "__main__":
                 success_lhip_angle_data,      #  這裡確實有問題，有待改善
                 success_rshoulder_angle_data
             ]
-            gt_data_lists = [
-                success_hip_angle_data,
-                success_shoulder_angle_data
-                ]
-        
+
         elif action =='TKATCHEV':
             # 2 fail 1 success in TKATCHEV
             data_lists = [
@@ -344,12 +267,6 @@ if __name__ == "__main__":
                 success_lhip_angle_data,
                 success_rshoulder_angle_data
             ]
-            gt_data_lists = [
-                fail_hip_angle_data,
-                fail_shoulder_angle_data,
-                success_hip_angle_data,
-                success_shoulder_angle_data
-                ]
     elif subject== 'sub3':
     # all TKATCHEV
     # sub3 : all left
@@ -359,12 +276,6 @@ if __name__ == "__main__":
             success_rhip_angle_data,
             success_lshoulder_angle_data
         ]
-        gt_data_lists = [
-            fail_hip_angle_data,
-            fail_shoulder_angle_data,
-            success_hip_angle_data,
-            success_shoulder_angle_data
-            ]
     
     elif subject== 'sub4':
         if action == 'YAMAWAKI':
@@ -376,12 +287,6 @@ if __name__ == "__main__":
                 success_lhip_angle_data,      #  這裡確實有問題，有待改善
                 success_rshoulder_angle_data
             ]
-            gt_data_lists = [
-                fail_hip_angle_data,
-                fail_shoulder_angle_data,
-                success_hip_angle_data,
-                success_shoulder_angle_data
-                ]
         
         elif action =='TKATCHEV':
             # ALL success in TKATCHEV
@@ -389,16 +294,11 @@ if __name__ == "__main__":
                 success_rhip_angle_data,
                 success_lshoulder_angle_data
             ]
-            gt_data_lists = [
-                success_hip_angle_data,
-                success_shoulder_angle_data
-                ]
-        
     
     # pdb.set_trace()
     # 设置图形大小plt.figure(figsize=(10, 6)) 
     
-    # plt.figure(figsize=(10, 6)) 
+    plt.figure(figsize=(12, 9)) 
     
     # selecct sub1,sub2,sub3
     if subject=='sub1':
@@ -414,7 +314,6 @@ if __name__ == "__main__":
         gt_color = [['g'],['m'],['g','g','g','g','g','g'],['m','m','m','m','m','m']]
         
     elif subject=='sub2':
-        
         if action=='YAMAWAKI':
             sub2_list = [[(0,152),(0,163),(0,159),(0,178),(0,170),(0,178)],[(0,152),(0,163),(0,159),(0,178),(0,170),(0,178)]] # for succss
             results = [['success','success','success','success','success','success'],['success','success','success','success','success','success']]
@@ -445,7 +344,7 @@ if __name__ == "__main__":
         if action=='YAMAWAKI':
             # pdb.set_trace()
             # [fail;fail;success;success]
-            sub4_list = [[(0,447)],[(0,447)],[(0,425),(0,437)],[(0,425),(0,437)]] # for fail and success
+            sub4_list = [[(0,447)],[(0,447)],[(0,437),(0,425)],[(0,437),(0,435)]] # for fail and success
             # sub3_list = [[(0,715),(0,740),(0,751)],[(0,715),(0,740),(0,751)]] # for succss
             results = [['fail'],['fail'],['success','success'],['success','success']]
             sub_list = sub4_list
@@ -468,18 +367,11 @@ if __name__ == "__main__":
     
     plt.plot([], color='b', label='Shoulder Angle')
     plt.plot([], color='r', label='Hip Angle')
- 
     
-    mae_list = []  
-    rmse_list = []  
-    std_list = []
     # pdb.set_trace()
-    count = 0
     # 循环遍历数据列表并绘制波形图
-    for data_list,gt_data_list,margin,cols,gt_cols,order,result in zip(data_lists,gt_data_lists,sub_list,color,gt_color,orders,results):
-        for j,k,marg,col,gt_col,ind,res in zip(data_list,gt_data_list,margin,cols,gt_cols,order,result):
-            plt.figure(figsize=(14, 10)) 
-            # pdb.set_trace()
+    for data_list,margin,cols in zip(data_lists,sub_list,color):
+        for j,marg,col in zip(data_list,margin,cols):
             
             temp = j[marg[0]:marg[1]]
             
@@ -489,95 +381,56 @@ if __name__ == "__main__":
             
             j = temp[::-1]
             
-            
             threshold = 40
             diff = np.abs(np.diff(temp))
             if np.any(diff > threshold):
                 print('median')
-                j = median_filter(j,6)  # predict joint angle pass moving avrage filter
-                k = median_filter(k,6)  # tracker gt joint angle pass moving avrage filter
-                # j = moving_average_filter(j.tolist(),6)  # predict joint angle pass moving avrage filter
-                # k = moving_average_filter(k.tolist(),6)  # tracker gt joint angle pass moving avrage filter
-                # j = median_filter(j, threshold)
+                # pdb.set_trace()
+                j = median_filter(j, threshold)
+                
+                j = moving_average_filter(j.tolist(),5)
+            
+                
             else:
                 print('moving')
-                # j = moving_average_filter(j,5)
-                j = moving_average_filter(j,6)  # predict joint angle pass moving avrage filter
-                k = moving_average_filter(k,6)  # tracker gt joint angle pass moving avrage filter
-            
-            
-            
-            count += 1
+                j = moving_average_filter(j,5)
             
             # 生成 x 轴坐标，从 0 到数据列表长度减 1
             x = [i/120 for i in range(len(j))]
             # 绘制波形图
-            k = k[::-1]
-            k = k[0:len(j)]
-            k = k[::-1]
-            
-            diff = np.subtract(np.array(j), np.array(k))
-            
-            # std
-            std = np.std(diff)
-            std_list.append(std)
-            # mae
-            abs_diff = np.abs(diff)
-            mae = np.mean(abs_diff)  # mae of predict and gt.
-            mae_list.append(mae)
-            # rmse 
-            squared_diff = np.square(diff) 
-            mse = np.mean(squared_diff)
-            rmse = np.sqrt(mse)
-            rmse_list.append(rmse)
-            
-            if col == 'r':
-                body_part = "hip"
-                plt.plot(x, j, color=col, label='Predict')
-            elif col == 'b':
-                body_part = "shoulder"
-                plt.plot(x, j, color=col, label='Predict')
+            plt.plot(x, j,color = col)
     
-            if gt_col == 'g':
-                body_part = "hip"
-                plt.plot(x, k, color=gt_col, label='GT')
-            elif gt_col == 'm':
-                body_part = "shoulder"
-                plt.plot(x, k, color=gt_col, label='GT')
-
-            # 根据颜色设置图例标签
-            legend  = plt.legend(loc='lower left')
-            for line in legend.get_lines():
-                line.set_linewidth(10) 
-            for text in legend.get_texts():
-                text.set_fontsize(35)  # 设置字体大小
-            plt.xlabel('time(s)',fontsize=70)
-            plt.ylabel('Angle',fontsize=70)
-            plt.xticks(fontsize=40)
-            plt.yticks([120,150,180,210,230], ['120°','150°','180°','210°','230°'],fontsize=40)
-            plt.ylim(110, 240)
-            # 设置 x 轴和 y 轴刻度标签的数量
-            plt.locator_params(axis='x', nbins=5)
-            plt.locator_params(axis='y', nbins=8)
-            plt.grid(True, linewidth=0.8)
-            plt.tight_layout()
-            # 保存图形
-            plt.savefig("/home/m11002163/lab_project/ViTPose-1/data_analysis/result_picture/" + f'vis_{subject}_{ind}_{action}_{res}_{body_part}')
-
-            
-            #plt.show()
+    # 添加图例
+    # plt.legend(['Hip', 'Shoulder'])
+    # plt.legend(['Success Right Hip', 'Success Left Hip', 'Success Right Shoulder', 'Success Left Shoulder',
+    #             'Fail Right Hip', 'Fail Left Hip', 'Fail Right Shoulder', 'Fail Left Shoulder'])
     
+    plt.legend(['Hip Angle', 'Shoulder Angle'])
+    plt.legend(loc='lower left')
     
-
-    final_std = np.mean(std_list)
-    final_rmse = np.mean(rmse_list)
-    final_mae = np.mean(mae_list)
-    
-    print('final_std',final_std)
-    print('final_rmse',final_rmse)
-    print('final_mae',final_mae)
+    # 根据颜色设置图例标签
+    legend  = plt.legend(loc='lower left')
+    for line in legend.get_lines():
+        line.set_linewidth(10) 
+    for text in legend.get_texts():
+        text.set_fontsize(35)  # 设置字体大小
         
+    plt.locator_params(axis='x', nbins=5)
+    plt.locator_params(axis='y', nbins=8)
+    plt.xticks(fontsize=25)
+    plt.yticks([120,150,180,210,230], ['120°','150°','180°','210°','230°'],fontsize=25)
+    plt.ylim(110, 240)
+    plt.grid(True, linewidth=0.8)
+    # 设置 x 轴和 y 轴标签
+    plt.xlabel('time(s)',fontsize=30)
+    plt.ylabel('Angle',fontsize=30)
     
+    # 显示图形
+    plt.show()
+    
+    plt.savefig("/home/m11002125/" + f'vis_{subject}_{action}')
+        
+        
 
             
             

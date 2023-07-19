@@ -3,14 +3,14 @@ import os.path as osp
 import pickle
 import shutil
 import tempfile
-
+import pdb
 import mmcv
 import torch
 import torch.distributed as dist
 from mmcv.runner import get_dist_info
+import numpy as np
 
-
-def single_gpu_test(model, data_loader):
+def single_gpu_test(model, data_loader, np_keypoint):
     """Test model with a single gpu.
 
     This method tests model with a single gpu and displays test progress bar.
@@ -29,6 +29,7 @@ def single_gpu_test(model, data_loader):
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
     for data in data_loader:
+        # pdb.set_trace()
         with torch.no_grad():
             result = model(return_loss=False, **data)
         results.append(result)
@@ -37,7 +38,64 @@ def single_gpu_test(model, data_loader):
         batch_size = len(next(iter(data.values())))
         for _ in range(batch_size):
             prog_bar.update()
+    # pdb.set_trace()    
+    # kpts_result = compute_keypoint_accuracy(results , np_keypoint)
+    
+    # pdb.set_trace()
     return results
+    # return results, kpts_result
+
+def compute_keypoint_accuracy(predictions, labels, threshold=5):
+    """
+    計算每個關鍵點的準確度
+    Args:
+        predictions (ndarray): 預測結果的關鍵點位
+        labels (ndarray): 真實標籤的關鍵點位置，形狀為 (N, K, 2)，N 是樣本數，K 是關鍵點數量，2 表示 (x, y)
+        threshold (float): 判斷預測是否正確的閾值，預設為 0.5
+    Returns:
+        accuracies (ndarray): 每個關鍵點的準確度，形狀為 (K,)
+    """
+    temp_key = []
+    for keypoints in predictions:
+        for keypoint in keypoints['preds']:
+            temp_key.append(keypoint)
+    
+    temp_key = np.array(temp_key)  #  (N, K, 3)，N 是樣本數，K 是關鍵點數量，3 表示 (x, y, score)
+    
+    
+    num_samples, num_keypoints, _ = temp_key.shape
+    accuracies = np.zeros(num_keypoints)
+    
+    for k in range(num_keypoints):
+        correct = 0
+        total = 0
+    
+        for i in range(num_samples):
+            pred = temp_key[i, k, :2]  # 預測的關鍵點座標 (x, y)
+            gt = labels[i, k]  # 實際的關鍵點座標 (x, y)
+    
+            distance = np.linalg.norm(pred - gt)  # 計算預測值和實際值之間的歐式距離
+    
+            if distance <= threshold:
+                correct += 1
+            total += 1
+    
+        accuracy = correct / total  # 計算準確度
+        accuracies[k] = accuracy
+
+
+    
+    return accuracies
+
+    # for i in range(num_keypoints):
+    #     pred_keypoints = temp_key[:, i, :2]
+    #     true_keypoints = labels[:, i, :2]
+    #     distances = np.linalg.norm(pred_keypoints - true_keypoints, axis=1)
+    #     correct_predictions = distances <= threshold
+    #     accuracy = np.mean(correct_predictions)
+    #     accuracies[i] = accuracy
+
+    # return accuracies
 
 
 def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):

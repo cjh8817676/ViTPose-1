@@ -208,17 +208,30 @@ def kalman_filter(data):
 
     return filtered_data
 
+# def moving_average_filter(data, window_size):
+#     # 定義一個空的列表來存儲平均值
+#     filtered_data = []
+
+#     # 計算移動窗口中的平均值，並將其添加到filtered_data中
+#     for i in range(window_size, len(data) - window_size):
+#         window = data[i-window_size:i+window_size+1]
+#         avg = sum(window) / len(window)
+#         filtered_data.append(avg)
+
+#     return filtered_data
 def moving_average_filter(data, window_size):
-    # 定義一個空的列表來存儲平均值
     filtered_data = []
 
-    # 計算移動窗口中的平均值，並將其添加到filtered_data中
     for i in range(window_size, len(data) - window_size):
-        window = data[i-window_size:i+window_size+1]
+        window = data[i - window_size: i + window_size + 1]
         avg = sum(window) / len(window)
         filtered_data.append(avg)
 
-    return filtered_data
+    # 補償損失的資料點
+    compensate_points = window_size // 2
+    compensated_data = data[:compensate_points] + filtered_data + data[-compensate_points:]
+
+    return compensated_data
 
 def median_filter(signal, window_size):
     """
@@ -414,7 +427,7 @@ class MainWindow(QMainWindow):
         # load mask to self.mask_data and find human mask
         self.load_mask()
     
-        
+        # pdb.set_trace()  
         # load ground truth of parameter:
         # gt head:
         if os.path.isfile(self.gt_head_path):
@@ -611,11 +624,11 @@ class MainWindow(QMainWindow):
 
         # median filter
         MVA_WINDOW_SIZE = 8
-        self.head_height_data = median_filter(self.head_height_data,MVA_WINDOW_SIZE)
-        self.right_hip_angle_data = median_filter(self.right_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
-        self.left_shoulder_angle_data = median_filter(self.left_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
-        self.left_hip_angle_data = median_filter(self.left_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
-        self.right_shoulder_angle_data = median_filter(self.right_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        self.head_height_data = moving_average_filter(self.head_height_data,MVA_WINDOW_SIZE)
+        self.right_hip_angle_data = moving_average_filter(self.right_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        self.left_shoulder_angle_data = moving_average_filter(self.left_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        self.left_hip_angle_data = moving_average_filter(self.left_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        self.right_shoulder_angle_data = moving_average_filter(self.right_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
 
         self.position_label.setText('Position:0/{}'.format(self.num_frames))
         # bytesPerLine = 3 * self.w

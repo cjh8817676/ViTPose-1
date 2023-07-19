@@ -23,7 +23,9 @@ from scipy import signal
 from scipy.signal import savgol_filter
 from scipy.signal import medfilt
 from pykalman import KalmanFilter
-
+from pyqtgraph import TextItem
+import csv
+import bottleneck as bn
 
 HUMAN_MASK = 1  # The number of the human mask
 BAR_MASK   = 2  # The number of the bar mask
@@ -58,7 +60,6 @@ def find_human_mask(original_mask):
 
     
     rows,cols = np.where((original_mask[:,:]==HUMAN_MASK))
-    
     
     for i,j in zip(rows,cols):
         human_mask_point.append([j,i])
@@ -188,40 +189,22 @@ def getAngle(pointlist):
     angD = (math.degrees(angR))
     return -angD
 
-def kalman_filter(data):
-    # 定義觀測矩陣H，這是一個1x1的矩陣，因為觀測向量只有一維
-    H = np.array([[1.0]])
+# def moving_average_filter(data, window_size):
     
-    # 定義狀態轉移矩陣F，這也是一個1x1的矩陣，因為狀態向量只有一維
-    F = np.array([[1.0]])
-    
-    # 定義狀態轉移噪聲協方差Q，這是一個1x1的矩陣
-    Q = np.array([[1e-5]])
-    
-    # 定義觀測噪聲協方差R，這是一個1x1的矩陣
-    R = np.array([[0.1]])
-    
-    # 初始化卡爾曼濾波器
-    kf = KalmanFilter(transition_matrices=F, observation_matrices=H, transition_covariance=Q, observation_covariance=R)
+#     filtered_data = np.array([])
+#     filtered_data = bn.move_mean(np.array(data), window=window_size,min_count = None)
 
-    # 進行Kalman濾波
-    filtered_data, _ = kf.filter(data)
-
-    return filtered_data
-
+#     return filtered_data
 def moving_average_filter(data, window_size):
     filtered_data = []
-
-    for i in range(window_size, len(data) - window_size):
-        window = data[i - window_size: i + window_size + 1]
-        avg = sum(window) / len(window)
+    for i in range(len(data)):
+        lower_bound = max(0, i - window_size + 1)
+        upper_bound = min(i + 1, len(data))
+        window = data[lower_bound:upper_bound]
+        avg = np.mean(window)
         filtered_data.append(avg)
-
-    # 補償損失的資料點
-    compensate_points = window_size // 2
-    compensated_data = data[:compensate_points] + filtered_data + data[-compensate_points:]
-
-    return compensated_data
+    return filtered_data
+     
 # def moving_average_filter(data, window_size):
 #     # 定義一個空的列表來存儲平均值
 #     filtered_data = []
@@ -235,24 +218,47 @@ def moving_average_filter(data, window_size):
 #     return filtered_data
 
 def median_filter(signal, window_size):
-    """
-    對一維訊號做中值濾波。
-    :param signal: 一維訊號
-    :param window_size: 窗口大小
-    :return: 濾波後的訊號
-    """
     filtered_signal = np.zeros_like(signal)
+    signal = np.array(signal)
     for i in range(len(signal)):
         lower_bound = max(0, i - window_size // 2)
         upper_bound = min(len(signal), i + window_size // 2 + 1)
-        filtered_signal[i] = np.median(signal[lower_bound:upper_bound])
+    
+        # 檢查窗口內是否有NaN值
+        if np.isnan(signal[lower_bound:upper_bound]).any():
+            # 若有NaN值，找尋窗口內的非NaN值進行中值計算
+            non_nan_values = signal[lower_bound:upper_bound][~np.isnan(signal[lower_bound:upper_bound])]
+            filtered_signal[i] = np.median(non_nan_values)
+        else:
+            # 若窗口內無NaN值，正常進行中值計算
+            filtered_signal[i] = np.median(signal[lower_bound:upper_bound])
+    
     return filtered_signal
+
+
+import math
+
+def euclidean_distance(point1, point2, vr, hr, mid_point):
+    x1 = mid_point[0] - point1[0]
+    y1 = mid_point[1] - point1[1]
+    x2 = mid_point[0] - point2[0]
+    y2 = mid_point[1] - point2[1]
+    scaled_x1 = x1 * hr
+    scaled_y1 = y1 * vr
+    scaled_x2 = x2 * hr
+    scaled_y2 = y2 * vr
+    
+    
+    # 计算欧氏距离
+    distance = math.sqrt((scaled_x2 - scaled_x1)**2 + (scaled_y2 - scaled_y1)**2)
+    # distance = math.sqrt((point2[0] - point1[0])**2 + (point2[1] - point1[1])**2)
+    return distance
 
 # 多個 Widget 組成 Layout。  Lauout 又可以互相組合。
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        uic.loadUi("/home/m11002163/lab_project/ViTPose-1/demo/new_gui.ui", self)
+        uic.loadUi("./data_analysis/new_gui2.ui", self)
         
         # start frame
         self.start_frame = 0
@@ -295,6 +301,7 @@ class MainWindow(QMainWindow):
         self.right_one_frame.clicked.connect(self.on_next_frame)
         self.left_one_frame.setEnabled(False)
         self.left_one_frame.clicked.connect(self.on_prev_frame)
+        self.save_to_csv.clicked.connect(self.save_data_to_csv)
     
         # motion/action data
         self.mask_data = defaultlist()    # mask for every frame(Image)
@@ -319,35 +326,35 @@ class MainWindow(QMainWindow):
         self.height_pg_timer = pg.QtCore.QTimer()
         self.height_pg_timer.timeout.connect(self.update_height)
     
-        # twist pg
+        # hip_angle_pg
         self.gt_augular_speed_data = []
         self.twist_data = [0]                                          # no twist speed in first frame 
-        self.twist_pg.showGrid(x = True, y = True, alpha = 1) 
-        self.twist_pg.setLabel('bottom','Time','s')
-        # self.twist_gt_curve1 = self.twist_pg.plot(self.gt_augular_speed_data,pen=(255,0,0)) # for indicate
-        # self.twist_curve1 = self.twist_pg.plot(self.twist_data)                   # for indicate
+        self.hip_angle_pg.showGrid(x = True, y = True, alpha = 1) 
+        self.hip_angle_pg.setLabel('bottom','Time','s')
+        # self.twist_gt_curve1 = self.hip_angle_pg.plot(self.gt_augular_speed_data,pen=(255,0,0)) # for indicate
+        # self.twist_curve1 = self.hip_angle_pg.plot(self.twist_data)                   # for indicate
         self.height_pg.setLabel('left','meter(m)')
-        self.twist_pg_timer = pg.QtCore.QTimer()
-        self.twist_pg_timer.timeout.connect(self.update_twist)
+        self.hip_angle_pg_timer = pg.QtCore.QTimer()
+        self.hip_angle_pg_timer.timeout.connect(self.update_twist)
         
-        # handoff pg
+        # shoulder_angle pg
         self.handoff_data = defaultlist()    # true if hands on bars , false if hands not on bars for every frame.
-        self.hand_off_pg.setLabel('bottom','Time','s')
-        self.hand_off_pg.showGrid(x = True, y = True, alpha = 1)
-        self.hand_off_curve = self.hand_off_pg.plot(self.handoff_data) # for indicate
-        self.hand_off_timer = pg.QtCore.QTimer()
-        self.hand_off_timer.timeout.connect(self.update_hand_off)
+        self.shoulder_angle_pg.setLabel('bottom','Time','s')
+        self.shoulder_angle_pg.showGrid(x = True, y = True, alpha = 1)
+        # self.shoulder_angle_curve = self.shoulder_angle_pg.plot(self.handoff_data) # for indicate
+        self.shoulder_angle_timer = pg.QtCore.QTimer()
+        self.shoulder_angle_timer.timeout.connect(self.update_shoulder_angle)
         
         self.comboBox.currentTextChanged.connect(self.set_RL_mode)
         self.body = 'Left_Body'
 
-        # sensor pg
-        # self.sensors_data =  np.random.rand(300)
-        self.sensors_pg.setLabel('bottom','Time','s')
-        self.sensors_pg.showGrid(x = True, y = True, alpha = 1)
-        # self.sensors_curve = self.sensors_pg.plot(self.sensors_data)
+        # hip_speed pg
+        self.hip_speed_gp.setLabel('bottom','Time','s')
+        self.hip_speed_gp.showGrid(x = True, y = True, alpha = 1)
+        # self.sensors_curve = self.hip_speed_gp.plot(self.sensors_data)
         self.imu_pg_timer = pg.QtCore.QTimer()
-        self.imu_pg_timer.timeout.connect(self.update_imu)
+        self.imu_pg_timer.timeout.connect(self.update_hip_speed)
+
         self.l_eye       = []
         self.r_eye       = []
         self.l_ear       = []
@@ -373,9 +380,12 @@ class MainWindow(QMainWindow):
         self.head_height_data = []
         self.hand_coordinate = []
         self.gt_augular_speed_data = []
-        self.twist_data = [0]                                          # no twist speed in first frame 
+        self.twist_data = [0]                   
         self.handoff_data = []
         self.head_coord_data = []
+        self.hip_speed = []
+        self.gt_hip_speed = []
+
         global imu_data_pd,imu_data_gyrox,imu_data_gyroy,imu_data_gyroz
         global imu_data_accx,imu_data_accy,imu_data_accz
         global imu_data_haccx,imu_data_haccy,imu_data_haccz, imu_data_len
@@ -397,12 +407,10 @@ class MainWindow(QMainWindow):
             self.motion_json_path = os.path.join(f'{self.file_path}','gt_' + video_mask+'.'+video_form+'.json')
         else:
             self.motion_json_path = os.path.join(f'{self.file_path}',video_mask+'.'+video_form+'.json')
-
-        self.gt_head_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_head.xlsx')
-        self.gt_belly_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_belly.xlsx')
-        self.gt_joint_path = os.path.join('/home/m11002125/ViTPose/ground_truth/',video_mask+'_gt_joint.xlsx')
-        self.gt_joint_angle_path = os.path.join('/home/m11002125/ViTPose/tracker_gt_output_results/','vis_'+video_mask+'_joint_gt.xlsx')
         
+        self.gt_joint_angle_path = os.path.join('/home/m11002125/ViTPose/tracker_gt_output_results/','vis_'+video_mask+'_joint_gt.xlsx')
+        self.gt_keypoint_angle_path = os.path.join('/home/m11002125/ViTPose/tracker_gt_output_results/','vis_'+video_mask+'_keypoint_gt.xlsx')
+        self.video_mask = video_mask
         # read results of pose estimation.
         with open(self.motion_json_path) as f:    # 讀取每一幀的 pose keypoint 和 bbox(左上、右下) 的座標
             self.pose_data = json.load(f)
@@ -428,35 +436,15 @@ class MainWindow(QMainWindow):
         
         # load mask to self.mask_data and find human mask
         self.load_mask()
-    
-        # pdb.set_trace()
-        # load ground truth of parameter:
-        # gt head:
-        if os.path.isfile(self.gt_head_path):
-            excel_data = pd.read_excel(self.gt_head_path)
-            excel_data = excel_data.tail(-1) # remove first row
-            excel_data.set_axis( ['step','frame','time','pixelx','pixely','x','y','r','theta_r','theta','w','wa'], axis='columns', inplace=True)
-            self.gt_height_data = np.array(excel_data['y'].to_numpy(), dtype=float)
-        else:
-            self.gt_height_data = None
-            print('no head ground truth')
-        # pdb.set_trace()
-        # gt belly:
-        if os.path.isfile(self.gt_belly_path):
-            belly_data = pd.read_excel(self.gt_belly_path)
-            belly_data = belly_data.tail(-1) # remove first row
-            belly_data.set_axis( ['step','frame','time','pixelx','pixely','x','y','r','theta_r','theta','w','wa'], axis='columns', inplace=True)
-            self.gt_augular_speed_data = np.array(belly_data['w'].to_numpy(), dtype=float) #　get angular speeds
-        else:
-            self.gt_augular_speed_data = None
-            print('no belly ground truth')
+
+        
         
         if os.path.isfile(self.gt_joint_angle_path):
-            # pdb.set_trace()
+            
             gt_jointangle_data = pd.read_excel(self.gt_joint_angle_path)
             gt_jointangle_data =  gt_jointangle_data.shift(-1).dropna().reset_index(drop=True)
 
-            
+            # pdb.set_trace()
             self.gt_hip_angle_data = gt_jointangle_data['hip_angle'].tolist()
             self.gt_shoulder_angle_data = gt_jointangle_data['shoulder_angle'].tolist()
             self.gt_angle_timeline = gt_jointangle_data['Unnamed: 1']
@@ -474,62 +462,39 @@ class MainWindow(QMainWindow):
             self.gt_hip_angle_data = []
             self.gt_shoulder_angle_data = []
             print('no gt_jointangle.xlsx found')   
-        if os.path.isfile(self.gt_joint_path):
-            gt_joint_data = pd.read_excel(self.gt_joint_path)
-            gt_joint_data.columns = gt_joint_data.iloc[0]
-            gt_joint_data = gt_joint_data.drop(0)
+        
+        # pdb.set_trace()
+        if os.path.isfile(self.gt_keypoint_angle_path):
+            print('keypoint_gt')
+            gt_keypoint_data = pd.read_excel(self.gt_keypoint_angle_path)
             
-            # record segment of ground truth
-            self.gt_windows_step = []   # from video outputed from XMem
-            self.gt_windows_frame = []  # from origin video 
-            start = True
-            for index,i in enumerate(gt_joint_data['step']):
-                if start:
-                    left_frame = gt_joint_data['frame'][index+1]
-                    left = i
-                    last = i
-                    start = False
+            column_names = gt_keypoint_data.columns
+            first_row_name = gt_keypoint_data.iloc[0].fillna('').astype(str)
+            df = gt_keypoint_data
+
+            # 将第一行数据与第二行数据名进行合并
+            body = ''
+            for index,(i,j) in enumerate(zip(column_names,first_row_name)):
+                if 'Unnamed' in i and len(body) <= 0:
                     continue
-                if i - last > 1:
-                    right = last
-                    self.gt_windows_step.append((left,right))
-                    self.gt_windows_frame.append((left_frame,gt_joint_data['frame'][index]))
-                    left_frame = gt_joint_data['frame'][index+1]
-                    left = i
-                if index == len(gt_joint_data['step'])-1:
-                    right = i
-                    self.gt_windows_step.append((left,right))
-                    self.gt_windows_frame.append((left_frame,gt_joint_data['frame'][index+1]))
-                last = i
-
-            # 資料補None
-            # Find out the timeline that complemented with None
-            compliment = np.array([None] * 16)
-            pdb.set_trace()
-
-            self.gt_joint_timeline = gt_joint_data.iloc[1:,0:3].to_numpy() # time,step,frame
-            step_line = self.gt_joint_timeline[:,1]
+                if 'Unnamed' not in i:
+                    body = i
+                first_row_name[index] = body+"_"+j
             
-            for j in self.gt_angle_timeline.iloc[0:].to_numpy():
-                if j[1] not in step_line:
-                    compliment[0] = j[0] 
-                    compliment[1] = j[1]
-                    compliment[2] = j[2]
-                    gt_joint_data.loc[len(gt_joint_data)+1] = compliment
+            # pdb.set_trace()
+            # new_header = df.iloc[0].fillna('').astype(str)
+            df = df[1:].reset_index(drop=True)
             
-            gt_joint_data = gt_joint_data.sort_values(by='step').reset_index(drop=True)
-
-            self.gt_head_coord = gt_joint_data.iloc[:,3:5].to_numpy()
-            self.gt_height_data = gt_joint_data.iloc[:,5].to_numpy()
-            self.gt_wrist_coord = gt_joint_data.iloc[:,6:8].to_numpy()
-            self.gt_elbow_coord = gt_joint_data.iloc[:,8:10].to_numpy()
-            self.gt_knee_coord = gt_joint_data.iloc[:,10:12].to_numpy()
-            self.gt_hip_coord = gt_joint_data.iloc[:,12:14].to_numpy()
-            self.gt_shoulder_coord = gt_joint_data.iloc[:,14:16].to_numpy()
-        else:
-            self.gt_height_data = None
-            print('no gt_joint.xlsx found')   
-
+            # 设置新的列名
+            gt_keypoint_data = df.set_axis(first_row_name, axis=1)
+            
+            self.gt_hip_speed = gt_keypoint_data['shoulder_v'].tolist()
+            self.gt_hip_speed = [float(val) if val != '非數值' else float('nan') for val in self.gt_hip_speed]
+            self.gt_hip_speed = moving_average_filter(self.gt_hip_speed, 6)
+            
+            self.gt_time_line = gt_keypoint_data['frame'].tolist()
+            print('read finisehed')
+        
         # read all video and save every frame in stack
         self.stream = cv2.VideoCapture(self.filename)                    # 影像路徑
         self.num_frames = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT)) # 查看多少個frame
@@ -541,23 +506,30 @@ class MainWindow(QMainWindow):
         self.h = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))         # 影片高
 
         counter = 0
-
+        # pdb.set_trace()
         # center bar coord 
         # TODO: 單槓中心點的抓取方式，利用演算法 or 手動提供。
-        center_bar = np.array([(self.horizontal_bar_points[0][0] + self.horizontal_bar_points[1][0]) / 2 , self.horizontal_bar_points[0][1] + 17]) # 微調單槓中心點
+        print('bar_points',self.horizontal_bar_points)
+        center_bar = np.array([(self.horizontal_bar_points[0][0] + self.horizontal_bar_points[1][0]) / 2 , self.horizontal_bar_points[0][1] + 18]) # 微調單槓中心點
+        print('center_bar',center_bar)
         
         # 2.8m / pixel_height_of_bar
         pixel_height_ratio = 2.8 / (center_bar[1] - self.horizontal_bar_points[1][1]) 
-
+        pixel_length_ratio = pixel_height_ratio
+        print('pixel_height_ratio',pixel_height_ratio)
+        
+        
 
         # human center coord in start frame (hip center)
-        human_center = np.array([(self.l_hip[counter]['keypoints'] + self.r_hip[counter]['keypoints']) / 2,
-                        (self.l_hip[counter]['keypoints'] + self.r_hip[counter]['keypoints']) / 2])
+        human_center = np.array([(self.l_hip[counter][0] + self.r_hip[counter][0]) / 2,
+                        (self.l_hip[counter][1] + self.r_hip[counter][1]) / 2])
         
         # distance between center bar and hip
         # radius = (center_bar**2 - human_center**2)**0.5
         # 3 points to calculate angle
         pointlist = [center_bar,human_center,np.array([])]
+        hiplist = [(self.l_hip[counter][0],self.l_hip[counter][1]),(-1,-1)]
+        # pdb.set_trace()
         delta_theta_list = []
         delta_t = 1 / self.fps
         # pdb.set_trace()
@@ -570,10 +542,10 @@ class MainWindow(QMainWindow):
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
                 # height of gymnast (這裡座標要改成由左下(左下)往右上)，因為高度是由下往上
-                center_head_x = (self.l_ear[counter][0]+self.l_ear[counter][0]+self.l_eye[counter][0]+self.r_eye[counter][0]) / 4
-                center_head_y = (self.l_ear[counter][1]+self.l_ear[counter][1]+self.l_eye[counter][1]+self.r_eye[counter][1]) / 4
+                center_head_x = (self.l_ear[counter][0]+self.r_ear[counter][0]) / 2
+                center_head_y = (self.l_ear[counter][1]+self.r_ear[counter][1]) / 2
                 # pdb.set_trace()
-                self.head_height_data.append(( center_head_y - center_bar[1] ) * pixel_height_ratio)
+                self.head_height_data.append((( center_head_y - center_bar[1] ) * pixel_height_ratio) )
 
                 self.hand_coordinate.append([self.l_wrist[counter],self.r_wrist[counter][30:32]]) # wrist_coordinate
                 
@@ -586,9 +558,22 @@ class MainWindow(QMainWindow):
                 # pdb.set_trace()
                 self.left_hip_angle_data.append(calculate_angle_left_body([self.l_hip[counter] ,self.l_knee[counter] , self.l_shoulder[counter]]))
                 self.left_shoulder_angle_data.append(calculate_angle_left_body([self.l_shoulder[counter], self.l_elbow[counter] , self.l_hip[counter]]))
+                
                 self.right_hip_angle_data.append(calculate_angle_right_body([self.r_hip[counter] , self.r_knee[counter], self.r_shoulder[counter]]))
                 self.right_shoulder_angle_data.append(calculate_angle_right_body([self.r_shoulder[counter], self.r_elbow[counter] , self.r_hip[counter]]))
                 
+                # pdb.set_trace()
+                # calculate hip speed
+                if hiplist[1] == (-1,-1) :
+                    self.hip_speed.append(float('nan'))
+                    hiplist[1]  = ( self.l_hip[counter+1][0],self.l_hip[counter+1][1] )
+                else:
+                    # !!!!!!!!!!!!!!!!new_analyzer2
+                    # pdb.set_trace()
+                    self.hip_speed.append((euclidean_distance(hiplist[1],hiplist[0],pixel_height_ratio,pixel_length_ratio,center_bar ) * (self.fps)/1.5))
+                    hiplist.pop(0)
+                    hiplist.append((self.l_hip[counter+1][0],self.l_hip[counter+1][1]))
+
                 
                 # check hand-off 
                 # if check_handoff(self.horizontal_bar_points,[self.l_wrist[counter],self.r_wrist[counter]],self.human_mask_data[counter]): # check if handoff
@@ -618,11 +603,12 @@ class MainWindow(QMainWindow):
                 #     if counter==self.num_frames - 1:
                 #         self.twist_data.append(0)
                     
-                #     counter +=1
+                    
                 #     pointlist[1] = pointlist[2]
                 #     # add next human center to pointlist
                 #     pointlist[2] = np.array(np.array([(self.l_hip[counter][0] + self.r_hip[counter][0]) / 2,
                 #                     (self.l_hip[counter][1] + self.r_hip[counter][1]) / 2]))
+                counter +=1
             except:
 
                 print('sth error')
@@ -631,12 +617,18 @@ class MainWindow(QMainWindow):
 
         # pdb.set_trace()
         # median filter
-        MVA_WINDOW_SIZE = 6
+        MVA_WINDOW_SIZE = 4
         self.head_height_data = moving_average_filter(self.head_height_data,MVA_WINDOW_SIZE)
         self.right_hip_angle_data = moving_average_filter(self.right_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
         self.left_shoulder_angle_data = moving_average_filter(self.left_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
         self.left_hip_angle_data = moving_average_filter(self.left_hip_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
         self.right_shoulder_angle_data = moving_average_filter(self.right_shoulder_angle_data,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        # pdb.set_trace()
+        self.hip_speed = [float(val) if val != '非數值' else float('nan') for val in self.hip_speed]
+        self.hip_speed = median_filter(self.hip_speed,6)
+        self.hip_speed = [float(val) if val != '非數值' else float('nan') for val in self.hip_speed]
+        self.hip_speed = moving_average_filter(self.hip_speed,MVA_WINDOW_SIZE)  #data為要過濾的訊號
+        
 
         self.position_label.setText('Position:0/{}'.format(self.num_frames))
         # bytesPerLine = 3 * self.w
@@ -658,8 +650,8 @@ class MainWindow(QMainWindow):
 
         # gui timer 再讀完影片之後才啟動
         self.height_pg_timer.start() # 50ms
-        self.twist_pg_timer.start() # 50ms
-        self.hand_off_timer.start() # 50ms
+        self.hip_angle_pg_timer.start() # 50ms
+        self.shoulder_angle_timer.start() # 50ms
         self.imu_pg_timer.start() # 2ms  imu: 400Hz
     
     def set_RL_mode(self):
@@ -809,17 +801,22 @@ class MainWindow(QMainWindow):
         self.height_pg.plot(y = self.head_height_data)
         self.height_pg.plot([self.cursur],[self.head_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
         
+        
+        text = TextItem(text = "{:.4f}".format(self.head_height_data[self.cursur]) , color=(255, 0, 0), anchor=(0.5, 0.5))
+        text.setPos(self.cursur, self.head_height_data[self.cursur]+0.5)  # 设置标签位置
+        self.height_pg.addItem(text)
+        
         # time = np.linspace(0.0, self.num_frames/self.fps, num=len(self.head_height_data))
         # self.height_pg.plot(y = self.head_height_data,  x = time)
         # self.height_pg.plot([time[self.cursur]],[self.head_height_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
 
-        lr = pg.LinearRegionItem([1, 30], bounds=[0,100], movable=True)
-        self.height_pg.addItem(lr)
-        line = pg.InfiniteLine(angle=90, movable=True)
-        self.height_pg.addItem(line)
-        line.setBounds([0,200])
-
-        if self.gt_height_data is not None:
+        # lr = pg.LinearRegionItem([1, 30], bounds=[0,100], movable=True)
+        # self.height_pg.addItem(lr)
+        # line = pg.InfiniteLine(angle=90, movable=True)
+        # self.height_pg.addItem(line)
+        # line.setBounds([0,200])
+        # pdb.set_trace()
+        if len(self.gt_height_data) > 0:
             data = np.array(self.gt_height_data, dtype=float)
             time2 = np.linspace(0.0, len(self.gt_height_data)/self.fps, num=len(self.gt_height_data))
             
@@ -829,40 +826,74 @@ class MainWindow(QMainWindow):
     def update_twist(self):
         # pdb.set_trace()
 
-        self.twist_pg.clear()
+        self.hip_angle_pg.clear()
         if self.body == 'Left_Body':
-            self.twist_pg.plot(self.left_shoulder_angle_data)
-            self.twist_pg.plot([self.cursur],[self.left_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            # 之後再修改，先暫時允許左右不分
+            self.hip_angle_pg.plot(self.right_hip_angle_data)
+            self.hip_angle_pg.plot([self.cursur],[self.right_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            
+            text = TextItem(text = "{:.4f}".format(self.right_hip_angle_data[self.cursur]) , color=(255, 0, 0), anchor=(0.5, 0.5))
+            text.setPos(self.cursur, self.right_hip_angle_data[self.cursur]+15)  # 设置标签位置
+            self.hip_angle_pg.addItem(text)
+            
         elif self.body == 'Right_Body':
-            self.twist_pg.plot(self.right_shoulder_angle_data)
-            self.twist_pg.plot([self.cursur],[self.right_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            self.hip_angle_pg.plot(self.left_hip_angle_data)
+            self.hip_angle_pg.plot([self.cursur],[self.left_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        
+            text = TextItem(text = "{:.4f}".format(self.left_hip_angle_data[self.cursur]) , color=(255, 0, 0), anchor=(0.5, 0.5))
+            text.setPos(self.cursur, self.left_hip_angle_data[self.cursur]+15)  # 设置标签位置
+            self.hip_angle_pg.addItem(text)
+        
         # pdb.set_trace()
         if len(self.gt_shoulder_angle_data) > 0:
-            self.twist_pg.plot(self.gt_shoulder_angle_data,pen=(255,0,0))
-            self.twist_pg.plot([self.cursur],[self.gt_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+            self.hip_angle_pg.plot(self.gt_hip_angle_data,pen=(255,0,0))
+            self.hip_angle_pg.plot([self.cursur],[self.gt_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
 
         
-    def update_hand_off(self):
-        data = self.handoff_data[self.cursur:self.cursur+int(self.num_frames/self.fps)]
-        self.hand_off_curve.setData(data)
-        self.hand_off_curve.setPos(self.cursur, 0)
+    def update_shoulder_angle(self):
         
-
-    def update_imu(self):
-        # pdb.set_trace()
-        self.sensors_pg.clear()
+        self.shoulder_angle_pg.clear()
         if self.body == 'Left_Body':
-            self.sensors_pg.plot(self.right_hip_angle_data)
-            self.sensors_pg.plot([self.cursur],[self.right_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            self.shoulder_angle_pg.plot(self.left_shoulder_angle_data)
+            self.shoulder_angle_pg.plot([self.cursur],[self.left_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            
+            text = TextItem(text = "{:.4f}".format(self.left_shoulder_angle_data[self.cursur]) , color=(255, 0, 0), anchor=(0.5, 0.5))
+            text.setPos(self.cursur, self.left_shoulder_angle_data[self.cursur]+15)  # 设置标签位置
+            self.shoulder_angle_pg.addItem(text)
+            
         elif self.body == 'Right_Body':
-            self.sensors_pg.plot(self.left_hip_angle_data)
-            self.sensors_pg.plot([self.cursur],[self.left_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            self.shoulder_angle_pg.plot(self.right_shoulder_angle_data)
+            self.shoulder_angle_pg.plot([self.cursur],[self.right_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+            
+            text = TextItem(text = "{:.4f}".format(self.right_shoulder_angle_data[self.cursur]) , color=(255, 0, 0), anchor=(0.5, 0.5))
+            text.setPos(self.cursur, self.right_shoulder_angle_data[self.cursur]+15)  # 设置标签位置
+            self.shoulder_angle_pg.addItem(text)
+            
         # pdb.set_trace()
-        if len(self.gt_hip_angle_data) > 0:
-            self.sensors_pg.plot(self.gt_hip_angle_data,pen=(255,0,0))
-            self.sensors_pg.plot([self.cursur],[self.gt_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+        if len(self.gt_shoulder_angle_data) > 0:
+            self.shoulder_angle_pg.plot(self.gt_shoulder_angle_data,pen=(255,0,0))
+            self.shoulder_angle_pg.plot([self.cursur],[self.gt_shoulder_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
         
-    
+
+    def update_hip_speed(self):
+        # pdb.set_trace()
+        self.hip_speed_gp.clear()
+        self.hip_speed_gp.plot(self.hip_speed)
+        self.hip_speed_gp.plot([self.cursur],[self.hip_speed[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        if len(self.gt_hip_speed) > 0:
+            self.hip_speed_gp.plot(self.gt_hip_speed,pen=(255,0,0))
+            self.hip_speed_gp.plot([self.cursur],[self.gt_hip_speed[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
+        
+        # if self.body == 'Left_Body':
+        #     self.hip_speed_gp.plot(self.right_hip_angle_data)
+        #     self.hip_speed_gp.plot([self.cursur],[self.right_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        # elif self.body == 'Right_Body':
+        #     self.hip_speed_gp.plot(self.left_hip_angle_data)
+        #     self.hip_speed_gp.plot([self.cursur],[self.left_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        # # pdb.set_trace()
+        # if len(self.gt_hip_angle_data) > 0:
+        #     self.hip_speed_gp.plot(self.gt_hip_angle_data,pen=(255,0,0))
+        #     self.hip_speed_gp.plot([self.cursur],[self.gt_hip_angle_data[self.cursur]],pen=(200,200,200), symbolBrush=(0,255,0), symbolPen='w')
 
     def rand(self,n):
         data = np.random.random(n)
@@ -896,14 +927,50 @@ class MainWindow(QMainWindow):
         # for index,mask in enumerate(self.mask_data):
         #     self.human_mask_data[index].append(np.array(find_human_mask(mask)))
         print('find_human_mask cost', time.time() - t)
-        
-        
+
         # create horizontal mask only for 1st frame
         self.horizontal_bar_points = find_horizontal_bar_mask(self.mask_data[0])
         
         # pdb.set_trace()
         # return frames
         
+    def save_data_to_csv(self):
+        # self.left_hip_angle_data = []
+        # self.left_shoulder_angle_data = []
+        # self.right_hip_angle_data = []
+        # self.right_shoulder_angle_data = []
+        # self.head_height_data = []
+        # self.hip_speed = []
+        print('save_to_xlsx')
+        
+        if self.body == 'Left_Body':
+            hip_angle = self.right_hip_angle_data
+            shoulder_angle = self.left_shoulder_angle_data
+        elif self.body == 'Right_Body':
+            hip_angle = self.left_hip_angle_data
+            shoulder_angle = self.right_shoulder_angle_data
+         
+        time = np.linspace(0.0, len(self.left_hip_angle_data)/self.fps, num=len(self.left_hip_angle_data))
+        
+        
+        # 準備CSV文件的標題行和資料行
+        headers = ['time' , 'hip_angle_data', 'shoulder_angle_data', 'head_height', 'hip_speed']
+        data = zip(time , hip_angle, shoulder_angle, self.head_height_data, self.hip_speed)
+        # pdb.set_trace()
+        # 寫入CSV文件
+        with open(f'{self.video_mask}.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            
+            # 寫入標題行
+            writer.writerow(headers)
+            
+            # 寫入資料行
+            writer.writerows(data)
+        
+        print("CSV文件已成功建立。")
+        
+    
+
     def on_prev_frame(self):
         # self.tl_slide will trigger on setValue
         self.cursur = max(0, self.cursur-1) # cursor 決定第幾幀
