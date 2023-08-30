@@ -10,7 +10,7 @@ import torch.distributed as dist
 from mmcv.runner import get_dist_info
 import numpy as np
 
-def single_gpu_test(model, data_loader, np_keypoint):
+def single_gpu_test(model, data_loader, np_keypoint=None):
     """Test model with a single gpu.
 
     This method tests model with a single gpu and displays test progress bar.
@@ -32,20 +32,22 @@ def single_gpu_test(model, data_loader, np_keypoint):
         # pdb.set_trace()
         with torch.no_grad():
             result = model(return_loss=False, **data)
-        results.append(result)
+            results.append(result)
 
         # use the first key as main key to calculate the batch size
         batch_size = len(next(iter(data.values())))
         for _ in range(batch_size):
             prog_bar.update()
     # pdb.set_trace()    
-    # kpts_result = compute_keypoint_accuracy(results , np_keypoint)
+    if np_keypoint is not None:
+        kpts_result = compute_keypoint_accuracy(results , np_keypoint)
+        return results, kpts_result
     
     # pdb.set_trace()
     return results
-    # return results, kpts_result
+    
 
-def compute_keypoint_accuracy(predictions, labels, threshold=5):
+def compute_keypoint_accuracy(predictions, labels, threshold=8):
     """
     計算每個關鍵點的準確度
     Args:

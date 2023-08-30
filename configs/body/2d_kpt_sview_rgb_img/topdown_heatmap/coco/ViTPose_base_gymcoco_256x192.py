@@ -2,7 +2,7 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/coco.py'
 ]
-evaluation = dict(interval=10, metric='mAP', save_best='AP')
+evaluation = dict(interval=5, metric='mAP', save_best='AP')
 
 optimizer = dict(type='AdamW', lr=1e-4, betas=(0.9, 0.999), weight_decay=0.1,
                  constructor='LayerDecayOptimizerConstructor', 
@@ -27,7 +27,7 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=0.001,
     step=[170, 200])
-total_epochs = 50
+total_epochs = 210
 target_type = 'GaussianHeatmap'
 channel_cfg = dict(
     num_output_channels=17,
@@ -142,14 +142,15 @@ val_pipeline = [
 
 test_pipeline = val_pipeline
 data_cooc_root = 'data/coco'
-data_root = 'data/bestgym'
+data_root = 'data/bestgym/dataset'
+coco_data_root = 'data/coco'
 data = dict(
-    samples_per_gpu=128,
+    samples_per_gpu=64,
     workers_per_gpu=4,
-    val_dataloader=dict(samples_per_gpu=64),
-    test_dataloader=dict(samples_per_gpu=64),
+    val_dataloader=dict(samples_per_gpu=32),
+    test_dataloader=dict(samples_per_gpu=32),
     train=dict(
-            type='TopDownGymCocoDataset',
+            type='TopDownCocoDataset',
             ann_file=f'{data_root}/train.json',
             img_prefix=f'{data_root}/train/',
             data_cfg=data_cfg,
@@ -157,16 +158,16 @@ data = dict(
             dataset_info={{_base_.dataset_info}}),
 
     val=dict(
-            type='TopDownGymCocoDataset',
-            ann_file=f'{data_root}/val.json',
-            img_prefix=f'{data_root}/val/',
+            type='TopDownCocoDataset',
+            ann_file=f'{coco_data_root}/annotations/person_keypoints_val2017.json',
+            img_prefix=f'{coco_data_root}/val2017/',
             data_cfg=data_cfg,
             pipeline=val_pipeline,
             dataset_info={{_base_.dataset_info}}),
     test=dict(
-        type='TopDownGymCocoDataset',
-        ann_file=f'{data_root}/val.json',
-        img_prefix=f'{data_root}/val/',
+            type='TopDownCocoDataset',
+            ann_file=f'{data_root}/val.json',
+            img_prefix=f'{data_root}/val/',
         data_cfg=data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),
